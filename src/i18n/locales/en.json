@@ -7,6 +7,7 @@
     "cancel": "Cancel",
     "save": "Save",
     "continue": "Continue",
+    "back": "Back",
     "done": "Done"
   },
   "tabs": {
@@ -21,6 +22,50 @@
     "languageKk": "Қазақша",
     "languageRu": "Русский",
     "languageEn": "English"
+  },
+  "auth": {
+    "tagline": "Move. Streak. Compete.",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@example.com",
+    "sendCode": "Send code",
+    "codeSent": "We sent a 6-digit code to {{email}}",
+    "codeLabel": "Code from email",
+    "verify": "Sign in",
+    "changeEmail": "Change email",
+    "googleSoon": "Google — coming soon",
+    "appleSoon": "Apple — coming soon",
+    "invalidEmail": "Enter a valid email",
+    "invalidCode": "Wrong or expired code",
+    "signOut": "Sign out"
+  },
+  "onboarding": {
+    "aboutTitle": "About you",
+    "aboutSubtitle": "So your goals and city ranking are yours",
+    "nameLabel": "Name",
+    "namePlaceholder": "How should we call you?",
+    "ageLabel": "Age",
+    "genderLabel": "Gender",
+    "genderMale": "Male",
+    "genderFemale": "Female",
+    "genderOther": "Other",
+    "countryLabel": "Country",
+    "countryPlaceholder": "Kazakhstan",
+    "cityLabel": "City",
+    "cityPlaceholder": "Almaty",
+    "calibrationTitle": "Quick check",
+    "calibrationSubtitle": "No pressure — this only sets your comfortable starting goals. They will grow with you.",
+    "pushupsQuestion": "How many push-ups can you do in one go?",
+    "squatsQuestion": "How many squats can you do in one go?",
+    "startTargets": "Your starting goal: {{pushups}} push-ups × {{squats}} squats per set",
+    "finish": "Let's go!",
+    "nameRequired": "Please enter your name",
+    "ageRequired": "Please enter your age"
+  },
+  "profile": {
+    "streak": "Streak",
+    "cityRank": "City rank",
+    "noRankYet": "—",
+    "featuredEmpty": "Your top-3 achievements will appear here"
   },
   "home": {
     "todayScore": "Today's score",

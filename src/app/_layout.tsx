@@ -13,11 +13,32 @@ import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
 import { initI18n } from '@/i18n';
 import { LanguageTransitionProvider } from '@/i18n/LanguageTransition';
-import { ThemeProvider, palette } from '@/shared/ui';
+import { LoadingState, ThemeProvider, palette } from '@/shared/ui';
 
 SplashScreen.preventAutoHideAsync();
+
+function RootNavigator() {
+  const { session, loading, onboardingComplete } = useAuth();
+
+  if (loading) return <LoadingState />;
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Protected guard={!!session && onboardingComplete}>
+        <Stack.Screen name="(tabs)" />
+      </Stack.Protected>
+      <Stack.Protected guard={!!session && !onboardingComplete}>
+        <Stack.Screen name="onboarding" />
+      </Stack.Protected>
+      <Stack.Protected guard={!session}>
+        <Stack.Screen name="auth" />
+      </Stack.Protected>
+    </Stack>
+  );
+}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -69,12 +90,12 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <ThemeProvider>
           <NavThemeProvider value={navTheme}>
-            <LanguageTransitionProvider>
-              <StatusBar style={isDark ? 'light' : 'dark'} />
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" />
-              </Stack>
-            </LanguageTransitionProvider>
+            <AuthProvider>
+              <LanguageTransitionProvider>
+                <StatusBar style={isDark ? 'light' : 'dark'} />
+                <RootNavigator />
+              </LanguageTransitionProvider>
+            </AuthProvider>
           </NavThemeProvider>
         </ThemeProvider>
       </SafeAreaProvider>

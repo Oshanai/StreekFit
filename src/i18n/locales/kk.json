@@ -7,6 +7,7 @@
     "cancel": "Болдырмау",
     "save": "Сақтау",
     "continue": "Жалғастыру",
+    "back": "Артқа",
     "done": "Дайын"
   },
   "tabs": {
@@ -21,6 +22,50 @@
     "languageKk": "Қазақша",
     "languageRu": "Русский",
     "languageEn": "English"
+  },
+  "auth": {
+    "tagline": "Қозғал. Стрикті ұста. Жарыс.",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@example.com",
+    "sendCode": "Код жіберу",
+    "codeSent": "{{email}} поштасына 6 таңбалы код жібердік",
+    "codeLabel": "Хаттағы код",
+    "verify": "Кіру",
+    "changeEmail": "Email өзгерту",
+    "googleSoon": "Google — жақында",
+    "appleSoon": "Apple — жақында",
+    "invalidEmail": "Дұрыс email енгізіңіз",
+    "invalidCode": "Код қате немесе ескірген",
+    "signOut": "Шығу"
+  },
+  "onboarding": {
+    "aboutTitle": "Өзің туралы",
+    "aboutSubtitle": "Мақсаттарың мен қала рейтингі саған тиесілі болуы үшін",
+    "nameLabel": "Есімің",
+    "namePlaceholder": "Сені қалай атайық?",
+    "ageLabel": "Жасың",
+    "genderLabel": "Жынысың",
+    "genderMale": "Ер",
+    "genderFemale": "Әйел",
+    "genderOther": "Басқа",
+    "countryLabel": "Ел",
+    "countryPlaceholder": "Қазақстан",
+    "cityLabel": "Қала",
+    "cityPlaceholder": "Алматы",
+    "calibrationTitle": "Жылдам тексеру",
+    "calibrationSubtitle": "Қысымсыз — бұл тек ыңғайлы бастапқы мақсаттарды белгілейді. Олар сенімен бірге өседі.",
+    "pushupsQuestion": "Бір ретте қанша итерілу жасай аласың?",
+    "squatsQuestion": "Бір ретте қанша отырып-тұру жасай аласың?",
+    "startTargets": "Бастапқы мақсатың: бір тәсілде {{pushups}} итерілу × {{squats}} отырып-тұру",
+    "finish": "Кеттік!",
+    "nameRequired": "Есіміңді енгіз",
+    "ageRequired": "Жасыңды енгіз"
+  },
+  "profile": {
+    "streak": "Стрик",
+    "cityRank": "Қаладағы орын",
+    "noRankYet": "—",
+    "featuredEmpty": "Мұнда үздік 3 жетістігің көрсетіледі"
   },
   "home": {
     "todayScore": "Күн есебі",

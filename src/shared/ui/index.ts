@@ -1,6 +1,10 @@
 export { AppText } from './AppText';
+export { Avatar } from './Avatar';
 export { Button } from './Button';
 export { Card } from './Card';
+export { Chip } from './Chip';
+export { Input } from './Input';
+export { Stepper } from './Stepper';
 export { ScalePressable } from './Pressable';
 export { Screen } from './Screen';
 export { LoadingState, EmptyState, ErrorState } from './states';

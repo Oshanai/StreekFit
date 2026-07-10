@@ -7,6 +7,7 @@
     "cancel": "Отмена",
     "save": "Сохранить",
     "continue": "Продолжить",
+    "back": "Назад",
     "done": "Готово"
   },
   "tabs": {
@@ -21,6 +22,50 @@
     "languageKk": "Қазақша",
     "languageRu": "Русский",
     "languageEn": "English"
+  },
+  "auth": {
+    "tagline": "Двигайся. Держи стрик. Соревнуйся.",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@example.com",
+    "sendCode": "Отправить код",
+    "codeSent": "Мы отправили 6-значный код на {{email}}",
+    "codeLabel": "Код из письма",
+    "verify": "Войти",
+    "changeEmail": "Изменить email",
+    "googleSoon": "Google — скоро",
+    "appleSoon": "Apple — скоро",
+    "invalidEmail": "Введите корректный email",
+    "invalidCode": "Неверный или устаревший код",
+    "signOut": "Выйти"
+  },
+  "onboarding": {
+    "aboutTitle": "О тебе",
+    "aboutSubtitle": "Чтобы цели и рейтинг города были твоими",
+    "nameLabel": "Имя",
+    "namePlaceholder": "Как тебя называть?",
+    "ageLabel": "Возраст",
+    "genderLabel": "Пол",
+    "genderMale": "Мужской",
+    "genderFemale": "Женский",
+    "genderOther": "Другое",
+    "countryLabel": "Страна",
+    "countryPlaceholder": "Казахстан",
+    "cityLabel": "Город",
+    "cityPlaceholder": "Алматы",
+    "calibrationTitle": "Быстрая проверка",
+    "calibrationSubtitle": "Без напряга — это лишь задаст комфортные стартовые цели. Они будут расти вместе с тобой.",
+    "pushupsQuestion": "Сколько отжиманий можешь сделать за раз?",
+    "squatsQuestion": "Сколько приседаний можешь сделать за раз?",
+    "startTargets": "Твоя стартовая цель: {{pushups}} отжиманий × {{squats}} приседаний за подход",
+    "finish": "Погнали!",
+    "nameRequired": "Введи имя",
+    "ageRequired": "Введи возраст"
+  },
+  "profile": {
+    "streak": "Стрик",
+    "cityRank": "Ранг в городе",
+    "noRankYet": "—",
+    "featuredEmpty": "Здесь появятся твои топ-3 достижения"
   },
   "home": {
     "todayScore": "Счёт дня",
