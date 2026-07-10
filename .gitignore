@@ -38,6 +38,9 @@ yarn-error.*
 desktop.ini
 .claude/settings.local.json
 
+# supabase CLI local state
+supabase/.temp/
+
 # typescript
 *.tsbuildinfo
 

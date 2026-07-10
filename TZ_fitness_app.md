@@ -59,7 +59,7 @@
 - [x] Правило: НИ ОДНОЙ строки хардкодом в UI — только через ключи переводов
 
 ### 1.5 Backend (Supabase)
-- [ ] Схема БД (см. раздел 2), RLS на ВСЕХ таблицах с первого дня — миграция написана (`supabase/migrations/`), ждёт `supabase login` для применения
+- [x] Схема БД (см. раздел 2), RLS на ВСЕХ таблицах с первого дня — применено в прод-БД, RLS проверен (anon insert → 401)
 - [ ] Supabase Auth: Google + Apple — нужны OAuth-клиенты (Google Cloud Console) и Apple Developer
 - [ ] Storage-бакет под аватары/ассеты (или CDN)
 - [x] `.env`: SUPABASE_URL, SUPABASE_ANON_KEY; собрать клиент, проверить коннект (auth health 200 OK)
