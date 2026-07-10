@@ -16,6 +16,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
 import { createSessionFromUrl } from '@/features/auth/oauth';
+import { useSessionSync } from '@/features/movement/useSessionSync';
 import { supabase } from '@/lib/supabase/client';
 import { initI18n } from '@/i18n';
 import { LanguageTransitionProvider } from '@/i18n/LanguageTransition';
@@ -32,6 +33,9 @@ AppState.addEventListener('change', (state) => {
 
 function RootNavigator() {
   const { session, loading, onboardingComplete } = useAuth();
+
+  // Offline workout sessions sync on sign-in and on each return to foreground.
+  useSessionSync();
 
   // Auth deep links (magic link, OAuth redirect) can arrive outside the auth
   // screen: cold start, Android 'dismiss' case. Harmless no-op for other URLs.
