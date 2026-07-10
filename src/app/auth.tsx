@@ -3,10 +3,11 @@ import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 
+import { sendMagicLink, signInWithGoogle } from '@/features/auth/oauth';
 import { supabase } from '@/lib/supabase/client';
 import { AppText, Button, Input, Screen, spacing } from '@/shared/ui';
 
-type Step = 'email' | 'code';
+type Step = 'email' | 'sent';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -14,11 +15,12 @@ export default function AuthScreen() {
   const { t } = useTranslation();
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const sendCode = async () => {
+  // Magic-link deep links are handled globally in the root layout (RootNavigator).
+
+  const submitEmail = async () => {
     const trimmed = email.trim().toLowerCase();
     if (!EMAIL_RE.test(trimmed)) {
       setError(t('auth.invalidEmail'));
@@ -26,28 +28,21 @@ export default function AuthScreen() {
     }
     setError(null);
     setBusy(true);
-    const { error: otpError } = await supabase.auth.signInWithOtp({ email: trimmed });
+    const { error: linkError } = await sendMagicLink(trimmed);
     setBusy(false);
-    if (otpError) {
-      setError(otpError.message);
+    if (linkError) {
+      setError(linkError);
       return;
     }
-    setStep('code');
+    setStep('sent');
   };
 
-  const verifyCode = async () => {
+  const google = async () => {
     setError(null);
     setBusy(true);
-    const { error: verifyError } = await supabase.auth.verifyOtp({
-      email: email.trim().toLowerCase(),
-      token: code.trim(),
-      type: 'email',
-    });
+    const { error: googleError } = await signInWithGoogle();
     setBusy(false);
-    if (verifyError) {
-      setError(t('auth.invalidCode'));
-    }
-    // success: AuthProvider picks up the session, router guard swaps stacks
+    if (googleError) setError(googleError);
   };
 
   return (
@@ -66,6 +61,11 @@ export default function AuthScreen() {
         </View>
 
         <Animated.View entering={FadeInUp.duration(400).delay(120)} style={styles.form}>
+          <Button label={t('auth.googleContinue')} onPress={google} loading={busy} />
+          <Button label={t('auth.appleSoon')} onPress={() => {}} variant="secondary" disabled />
+
+          <View style={styles.divider} />
+
           {step === 'email' ? (
             <>
               <Input
@@ -78,36 +78,34 @@ export default function AuthScreen() {
                 autoCapitalize="none"
                 autoComplete="email"
                 textContentType="emailAddress"
-                autoFocus
               />
-              <Button label={t('auth.sendCode')} onPress={sendCode} loading={busy} />
+              <Button
+                label={t('auth.sendLink')}
+                onPress={submitEmail}
+                loading={busy}
+                variant="secondary"
+              />
             </>
           ) : (
             <>
-              <AppText variant="caption" color="secondary">
-                {t('auth.codeSent', { email: email.trim() })}
+              <AppText variant="caption" color="secondary" style={styles.sentText}>
+                {t('auth.linkSent', { email: email.trim() })}
               </AppText>
-              <Input
-                label={t('auth.codeLabel')}
-                value={code}
-                onChangeText={setCode}
-                error={error}
-                keyboardType="number-pad"
-                textContentType="oneTimeCode"
-                maxLength={6}
-                autoFocus
-              />
+              {error ? (
+                <AppText variant="caption" color="error" accessibilityRole="alert">
+                  {error}
+                </AppText>
+              ) : null}
               <Button
-                label={t('auth.verify')}
-                onPress={verifyCode}
+                label={t('auth.resendLink')}
+                onPress={submitEmail}
                 loading={busy}
-                disabled={code.trim().length < 6}
+                variant="secondary"
               />
               <Button
                 label={t('auth.changeEmail')}
                 onPress={() => {
                   setStep('email');
-                  setCode('');
                   setError(null);
                 }}
                 variant="ghost"
@@ -115,10 +113,6 @@ export default function AuthScreen() {
             </>
           )}
 
-          <View style={styles.divider} />
-          {/* Native Google/Apple sign-in lands with the dev client (Phase 1 tail) */}
-          <Button label={t('auth.googleSoon')} onPress={() => {}} variant="secondary" disabled />
-          <Button label={t('auth.appleSoon')} onPress={() => {}} variant="secondary" disabled />
           {__DEV__ ? (
             <Button
               label="DEV: anonymous"
@@ -150,6 +144,9 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   divider: {
-    height: spacing.lg,
+    height: spacing.sm,
+  },
+  sentText: {
+    textAlign: 'center',
   },
 });

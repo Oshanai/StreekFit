@@ -5,23 +5,40 @@ import {
 } from '@expo-google-fonts/inter';
 import { Oswald_600SemiBold, Oswald_700Bold } from '@expo-google-fonts/oswald';
 import { useFonts } from 'expo-font';
+import { useURL } from 'expo-linking';
 import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import { useColorScheme } from 'react-native';
+import { AppState, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
+import { createSessionFromUrl } from '@/features/auth/oauth';
+import { supabase } from '@/lib/supabase/client';
 import { initI18n } from '@/i18n';
 import { LanguageTransitionProvider } from '@/i18n/LanguageTransition';
 import { LoadingState, ThemeProvider, palette } from '@/shared/ui';
 
 SplashScreen.preventAutoHideAsync();
 
+// RN has no background token refresh — tie it to foreground state (official pattern),
+// otherwise sessions silently expire after ~1h in background.
+AppState.addEventListener('change', (state) => {
+  if (state === 'active') supabase.auth.startAutoRefresh();
+  else supabase.auth.stopAutoRefresh();
+});
+
 function RootNavigator() {
   const { session, loading, onboardingComplete } = useAuth();
+
+  // Auth deep links (magic link, OAuth redirect) can arrive outside the auth
+  // screen: cold start, Android 'dismiss' case. Harmless no-op for other URLs.
+  const incomingUrl = useURL();
+  useEffect(() => {
+    if (incomingUrl) createSessionFromUrl(incomingUrl).catch(() => {});
+  }, [incomingUrl]);
 
   if (loading) return <LoadingState />;
 
