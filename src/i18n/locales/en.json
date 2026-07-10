@@ -1,0 +1,39 @@
+{
+  "common": {
+    "appName": "Streek Fit",
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "save": "Save",
+    "continue": "Continue",
+    "done": "Done"
+  },
+  "tabs": {
+    "today": "Today",
+    "move": "Move",
+    "leaderboard": "Ranking",
+    "profile": "Profile"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "languageKk": "Қазақша",
+    "languageRu": "Русский",
+    "languageEn": "English"
+  },
+  "home": {
+    "todayScore": "Today's score",
+    "streak": "Streak",
+    "streakDays_one": "{{count}} day",
+    "streakDays_other": "{{count}} days",
+    "dailyGoal": "Daily goal",
+    "empty": "No movement yet — let's start with a warm-up"
+  },
+  "movement": {
+    "pushups": "Push-ups",
+    "squats": "Squats",
+    "steps": "Steps",
+    "run": "Run"
+  }
+}

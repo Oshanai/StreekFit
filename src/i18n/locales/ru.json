@@ -1,0 +1,40 @@
+{
+  "common": {
+    "appName": "Streek Fit",
+    "loading": "Загрузка…",
+    "error": "Что-то пошло не так",
+    "retry": "Повторить",
+    "cancel": "Отмена",
+    "save": "Сохранить",
+    "continue": "Продолжить",
+    "done": "Готово"
+  },
+  "tabs": {
+    "today": "Сегодня",
+    "move": "Движение",
+    "leaderboard": "Рейтинг",
+    "profile": "Профиль"
+  },
+  "settings": {
+    "title": "Настройки",
+    "language": "Язык",
+    "languageKk": "Қазақша",
+    "languageRu": "Русский",
+    "languageEn": "English"
+  },
+  "home": {
+    "todayScore": "Счёт дня",
+    "streak": "Стрик",
+    "streakDays_one": "{{count}} день",
+    "streakDays_few": "{{count}} дня",
+    "streakDays_many": "{{count}} дней",
+    "dailyGoal": "Цель на день",
+    "empty": "Движения пока нет — начнём с разминки"
+  },
+  "movement": {
+    "pushups": "Отжимания",
+    "squats": "Приседания",
+    "steps": "Шаги",
+    "run": "Бег"
+  }
+}

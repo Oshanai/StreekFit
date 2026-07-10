@@ -1,0 +1,39 @@
+{
+  "common": {
+    "appName": "Streek Fit",
+    "loading": "Жүктелуде…",
+    "error": "Бірдеңе дұрыс болмады",
+    "retry": "Қайталау",
+    "cancel": "Болдырмау",
+    "save": "Сақтау",
+    "continue": "Жалғастыру",
+    "done": "Дайын"
+  },
+  "tabs": {
+    "today": "Бүгін",
+    "move": "Қозғалыс",
+    "leaderboard": "Рейтинг",
+    "profile": "Профиль"
+  },
+  "settings": {
+    "title": "Баптаулар",
+    "language": "Тіл",
+    "languageKk": "Қазақша",
+    "languageRu": "Русский",
+    "languageEn": "English"
+  },
+  "home": {
+    "todayScore": "Күн есебі",
+    "streak": "Стрик",
+    "streakDays_one": "{{count}} күн",
+    "streakDays_other": "{{count}} күн",
+    "dailyGoal": "Күндік мақсат",
+    "empty": "Әзірге қозғалыс жоқ — жаттығудан бастайық"
+  },
+  "movement": {
+    "pushups": "Еденнен итерілу",
+    "squats": "Отырып-тұру",
+    "steps": "Қадамдар",
+    "run": "Жүгіру"
+  }
+}
