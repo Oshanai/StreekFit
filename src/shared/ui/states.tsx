@@ -30,15 +30,32 @@ export function EmptyState({ message, action }: { message: string; action?: Reac
   );
 }
 
-export function ErrorState({ onRetry }: { onRetry?: () => void }) {
+export function ErrorState({
+  title,
+  message,
+  onRetry,
+  retryLabel,
+}: {
+  title?: string;
+  message?: string;
+  onRetry?: () => void;
+  retryLabel?: string;
+}) {
   const { t } = useTranslation();
 
   return (
     <View style={styles.center}>
+      {title ? (
+        <AppText variant="h2" style={styles.centeredText}>
+          {title}
+        </AppText>
+      ) : null}
       <AppText variant="body" color="secondary" style={styles.centeredText}>
-        {t('common.error')}
+        {message ?? t('common.error')}
       </AppText>
-      {onRetry ? <Button label={t('common.retry')} onPress={onRetry} variant="secondary" /> : null}
+      {onRetry ? (
+        <Button label={retryLabel ?? t('common.retry')} onPress={onRetry} variant="secondary" />
+      ) : null}
     </View>
   );
 }

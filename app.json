@@ -10,10 +10,14 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.streekfit.app",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Streek Fit uses the camera to count your push-ups and squats. Video is processed on-device and never leaves your phone."
+      }
     },
     "android": {
       "package": "com.streekfit.app",
+      "permissions": ["android.permission.CAMERA"],
       "adaptiveIcon": {
         "backgroundColor": "#0D0F14",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -27,6 +31,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "./plugins/withSpaceSafePaths",
       "expo-router",
       "expo-localization",
       [

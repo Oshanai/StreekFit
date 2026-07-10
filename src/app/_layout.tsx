@@ -50,6 +50,7 @@ function RootNavigator() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={!!session && onboardingComplete}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="workout" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack.Protected>
       <Stack.Protected guard={!!session && !onboardingComplete}>
         <Stack.Screen name="onboarding" />

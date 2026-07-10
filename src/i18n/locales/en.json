@@ -78,5 +78,32 @@
     "squats": "Squats",
     "steps": "Steps",
     "run": "Run"
+  },
+  "workout": {
+    "cameraChip": "Camera",
+    "targetHint": "Set target: {{count}}",
+    "comingSoon": "soon",
+    "setLabel": "Set {{count}}",
+    "target": "Target {{count}}",
+    "total": "Total {{count}}",
+    "startSet": "Start set",
+    "nextSet": "Next set",
+    "stopSet": "End set",
+    "finish": "Finish workout",
+    "rest": "Rest · {{count}}s",
+    "noPose": "Stand side-on to the camera so your whole body is visible",
+    "feedbackPartial": "Doesn't count — go full range",
+    "feedbackTooFast": "Too fast — rep not counted",
+    "feedbackForm": "Keep your body straight — rep not counted",
+    "feedbackLockout": "Extend all the way up",
+    "setCompleted": "Set complete — target reached!",
+    "setRegistered": "Set counted",
+    "setDiscarded": "Under 5 reps — not counted, no penalty",
+    "permissionTitle": "Camera needed",
+    "permissionBody": "The camera counts your reps. Video is processed on-device and never leaves your phone.",
+    "permissionGrant": "Allow camera",
+    "modelError": "Couldn't load the recognition model. Reinstall the app or contact us.",
+    "unavailableTitle": "Phone only",
+    "unavailableBody": "Camera rep counting works in the mobile app. Open Streek Fit on your phone."
   }
 }

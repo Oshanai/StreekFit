@@ -1,0 +1,456 @@
+/**
+ * Camera workout — the TZ §3.1/§11.1 core. NATIVE ONLY: the route gates this
+ * behind a platform check; importing it on web would pull in nitro modules.
+ *
+ * Threading model (TZ: no per-frame JS-bridge hops):
+ * - onFrame worklet (camera thread): pixels → tensor → MoveNet → landmarks →
+ *   rep/set FSMs. Engine state lives in the frame runtime's global, results
+ *   are mirrored into Reanimated shared values.
+ * - UI thread: skeleton overlay reads shared values via animated props.
+ * - JS thread: low-rate HUD polling (4 Hz), buttons write command shared
+ *   values that the frame worklet consumes — never the other way around.
+ */
+
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { AppState, StyleSheet, View } from 'react-native';
+import { useTensorflowModel, type TensorflowModel } from 'react-native-fast-tflite';
+import { NitroModules, type BoxedHybridObject } from 'react-native-nitro-modules';
+import { useSharedValue } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Camera, useCameraPermission, useFrameOutput } from 'react-native-vision-camera';
+
+import { AppText, Button, LoadingState, ErrorState, spacing, useTheme } from '@/shared/ui';
+
+import { createTensorScratch, frameToTensor, type TensorScratch } from './frameTensor';
+import { createLandmarkSlots, movenetToLandmarks, squareToFrame, letterboxTransform } from './movenet';
+import type { Landmark } from './pose';
+import { LM } from './pose';
+import { restRemainingMs, sessionSummary } from './setTracker';
+import { SkeletonOverlay, SKELETON_FLOATS } from './SkeletonOverlay';
+import {
+  beginSet,
+  createWorkoutSession,
+  processFrame,
+  stopSet,
+  type WorkoutExercise,
+  type WorkoutSession,
+} from './workoutSession';
+
+/** ~20 fps analysis — plenty for rep counting, keeps the phone cool (TZ §11.1). */
+const ANALYZE_INTERVAL_MS = 50;
+
+type FrameCtx = {
+  nonce: number;
+  session: WorkoutSession;
+  scratch: TensorScratch;
+  slots: Landmark[];
+  model: TensorflowModel | null;
+  lastAnalyzedMs: number;
+  lastCommandNonce: number;
+  feedbackNonce: number;
+};
+
+type FrameGlobal = { __streekWorkout?: FrameCtx };
+
+export type WorkoutSummary = { validReps: number; setsDone: number };
+
+type Props = {
+  exercise: WorkoutExercise;
+  targetReps: number;
+  onFinish: (summary: WorkoutSummary) => void;
+};
+
+export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  // Release the camera when the app backgrounds (TZ §11.1); unmount handles
+  // navigation away since this screen is a full-screen modal.
+  const [appActive, setAppActive] = useState(AppState.currentState === 'active');
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => setAppActive(s === 'active'));
+    return () => sub.remove();
+  }, []);
+
+  const { hasPermission, requestPermission, canRequestPermission } = useCameraPermission();
+  useEffect(() => {
+    if (!hasPermission && canRequestPermission) void requestPermission();
+  }, [hasPermission, canRequestPermission, requestPermission]);
+
+  const plugin = useTensorflowModel(
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- metro asset id
+    require('../../../assets/models/movenet_lightning_int8.tflite'),
+    [],
+  );
+  const boxedModel: BoxedHybridObject<TensorflowModel> | null = useMemo(
+    () => (plugin.state === 'loaded' ? NitroModules.box(plugin.model) : null),
+    [plugin],
+  );
+
+  // One nonce per mounted workout — the frame runtime resets its state on change.
+  const [sessionNonce] = useState(() => Date.now() + Math.random());
+
+  // --- shared values: frame worklet → UI ---
+  const currentReps = useSharedValue(0);
+  const setsDone = useSharedValue(0);
+  const totalReps = useSharedValue(0);
+  const setPhase = useSharedValue<'idle' | 'active' | 'resting'>('idle');
+  const restStartedAt = useSharedValue(0);
+  const restDurationMs = useSharedValue(0);
+  const feedback = useSharedValue<{ event: string; nonce: number }>({ event: 'none', nonce: 0 });
+  const poseOk = useSharedValue(false);
+  const skeleton = useSharedValue<number[]>([]);
+  // --- shared values: UI → frame worklet ---
+  const command = useSharedValue<{ type: 'start' | 'stop' | 'none'; nonce: number }>({
+    type: 'none',
+    nonce: 0,
+  });
+  const commandAck = useSharedValue(0);
+
+  const frameOutput = useFrameOutput({
+    targetResolution: { width: 640, height: 480 },
+    pixelFormat: 'rgb',
+    dropFramesWhileBusy: true,
+    enablePhysicalBufferRotation: true,
+    onFrame(frame) {
+      'worklet';
+      let disposed = false;
+      const disposeFrame = () => {
+        if (!disposed) {
+          disposed = true;
+          frame.dispose();
+        }
+      };
+      try {
+        const now = Date.now();
+        const g = globalThis as unknown as FrameGlobal;
+        let ctx = g.__streekWorkout;
+        if (ctx == null || ctx.nonce !== sessionNonce) {
+          ctx = {
+            nonce: sessionNonce,
+            session: createWorkoutSession(exercise, targetReps),
+            scratch: createTensorScratch(),
+            slots: createLandmarkSlots(),
+            model: null,
+            lastAnalyzedMs: 0,
+            lastCommandNonce: 0,
+            feedbackNonce: 0,
+          };
+          g.__streekWorkout = ctx;
+          restDurationMs.value = ctx.session.sets.config.restDurationMs;
+        }
+
+        // UI intents first, so start/stop feels instant even between analyses.
+        const cmd = command.value;
+        if (cmd.nonce !== ctx.lastCommandNonce) {
+          ctx.lastCommandNonce = cmd.nonce;
+          if (cmd.type === 'start') beginSet(ctx.session);
+          if (cmd.type === 'stop') stopSet(ctx.session, now);
+          const sum = sessionSummary(ctx.session.sets);
+          setsDone.value = sum.setsDone;
+          totalReps.value = sum.validReps;
+          currentReps.value = ctx.session.sets.currentReps;
+          setPhase.value = ctx.session.sets.phase;
+          restStartedAt.value = ctx.session.sets.restStartedAt;
+          commandAck.value = cmd.nonce;
+        }
+
+        if (now - ctx.lastAnalyzedMs < ANALYZE_INTERVAL_MS) return;
+        if (ctx.model == null) {
+          if (boxedModel == null) return;
+          ctx.model = boxedModel.unbox();
+        }
+        ctx.lastAnalyzedMs = now;
+
+        const srcW = frame.width;
+        const srcH = frame.height;
+        const bytesPerRow = frame.bytesPerRow;
+        const layout = frame.pixelFormat;
+        const pixels = new Uint8Array(frame.getPixelBuffer());
+        disposeFrame(); // pixels are copied into the tensor path; free the pool slot early
+
+        const ok = frameToTensor(pixels, srcW, srcH, bytesPerRow, layout, ctx.scratch);
+        if (!ok) {
+          poseOk.value = false;
+          return;
+        }
+
+        const outputs = ctx.model.runSync([ctx.scratch.tensor.buffer as ArrayBuffer]);
+        const keypoints = new Float32Array(outputs[0]);
+        movenetToLandmarks(keypoints, ctx.slots);
+
+        const outcome = processFrame(ctx.session, ctx.slots, now);
+        poseOk.value = outcome.poseUsable;
+
+        if (outcome.repEvent !== 'none' || outcome.setEvent !== 'none') {
+          const sum = sessionSummary(ctx.session.sets);
+          setsDone.value = sum.setsDone;
+          totalReps.value = sum.validReps;
+          currentReps.value = ctx.session.sets.currentReps;
+          setPhase.value = ctx.session.sets.phase;
+          restStartedAt.value = ctx.session.sets.restStartedAt;
+          const event = outcome.setEvent !== 'none' ? outcome.setEvent : outcome.repEvent;
+          ctx.feedbackNonce += 1;
+          feedback.value = { event, nonce: ctx.feedbackNonce };
+        }
+
+        // Skeleton for the better-visible side, in frame-normalized coords.
+        const slots = ctx.slots;
+        const leftVis =
+          slots[LM.leftShoulder].visibility +
+          slots[LM.leftElbow].visibility +
+          slots[LM.leftWrist].visibility +
+          slots[LM.leftHip].visibility +
+          slots[LM.leftKnee].visibility +
+          slots[LM.leftAnkle].visibility;
+        const rightVis =
+          slots[LM.rightShoulder].visibility +
+          slots[LM.rightElbow].visibility +
+          slots[LM.rightWrist].visibility +
+          slots[LM.rightHip].visibility +
+          slots[LM.rightKnee].visibility +
+          slots[LM.rightAnkle].visibility;
+        const left = leftVis >= rightVis;
+        const chain = left
+          ? [LM.leftWrist, LM.leftElbow, LM.leftShoulder, LM.leftHip, LM.leftKnee, LM.leftAnkle]
+          : [
+              LM.rightWrist,
+              LM.rightElbow,
+              LM.rightShoulder,
+              LM.rightHip,
+              LM.rightKnee,
+              LM.rightAnkle,
+            ];
+        const tf = letterboxTransform(srcW, srcH);
+        const pts: number[] = [srcW, srcH];
+        let visibleCount = 0;
+        for (let i = 0; i < chain.length; i += 1) {
+          const lm = slots[chain[i]];
+          const p = squareToFrame(lm.x, lm.y, tf, srcW, srcH);
+          pts.push(p.x, p.y, lm.visibility);
+          if (lm.visibility >= 0.35) visibleCount += 1;
+        }
+        skeleton.value = visibleCount >= 4 ? pts : [];
+      } finally {
+        disposeFrame();
+      }
+    },
+  });
+
+  // --- JS-side HUD state, polled at 4 Hz (never per-frame) ---
+  const [hud, setHud] = useState({
+    reps: 0,
+    sets: 0,
+    total: 0,
+    phase: 'idle' as 'idle' | 'active' | 'resting',
+    restLeftS: 0,
+    feedbackEvent: 'none',
+    poseVisible: false,
+  });
+  const lastFeedbackNonce = useRef(0);
+  const feedbackClearAt = useRef(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      const now = Date.now();
+      const fb = feedback.value;
+      if (fb.nonce !== lastFeedbackNonce.current) {
+        lastFeedbackNonce.current = fb.nonce;
+        feedbackClearAt.current = now + 1800;
+      }
+      const restLeftMs = restRemainingMs(
+        {
+          config: {
+            targetReps: 0,
+            minRepsToRegister: 0,
+            restDurationMs: restDurationMs.value,
+          },
+          phase: setPhase.value,
+          currentReps: 0,
+          completedSets: [],
+          restStartedAt: restStartedAt.value,
+        },
+        now,
+      );
+      setHud({
+        reps: currentReps.value,
+        sets: setsDone.value,
+        total: totalReps.value,
+        phase: setPhase.value,
+        restLeftS: Math.ceil(restLeftMs / 1000),
+        feedbackEvent: now < feedbackClearAt.current ? fb.event : 'none',
+        poseVisible: poseOk.value,
+      });
+    }, 250);
+    return () => clearInterval(id);
+  }, [
+    feedback,
+    currentReps,
+    setsDone,
+    totalReps,
+    setPhase,
+    restStartedAt,
+    restDurationMs,
+    poseOk,
+  ]);
+
+  const sendCommand = (type: 'start' | 'stop') => {
+    command.value = { type, nonce: command.value.nonce + 1 };
+  };
+
+  const finishing = useRef(false);
+  const handleFinish = () => {
+    if (finishing.current) return;
+    finishing.current = true;
+    if (setPhase.value === 'active') sendCommand('stop');
+    // Give the frame worklet a beat to process the stop command, then read
+    // the aggregates. If the camera stalled, we still finish with what we have.
+    setTimeout(() => {
+      onFinish({ validReps: totalReps.value, setsDone: setsDone.value });
+    }, 400);
+  };
+
+  if (!hasPermission) {
+    return (
+      <ErrorState
+        title={t('workout.permissionTitle')}
+        message={t('workout.permissionBody')}
+        retryLabel={canRequestPermission ? t('workout.permissionGrant') : undefined}
+        onRetry={canRequestPermission ? () => void requestPermission() : undefined}
+      />
+    );
+  }
+  if (plugin.state === 'error') {
+    return <ErrorState title={t('common.error')} message={t('workout.modelError')} />;
+  }
+  if (plugin.state === 'loading') {
+    return <LoadingState />;
+  }
+
+  const feedbackKey = feedbackMessageKey(hud.feedbackEvent);
+
+  return (
+    <View style={styles.root}>
+      <Camera
+        style={StyleSheet.absoluteFill}
+        isActive={appActive}
+        device="back"
+        outputs={[frameOutput]}
+        resizeMode="contain"
+      />
+      <SkeletonOverlay skeleton={skeleton} />
+
+      {/* HUD */}
+      <View style={[styles.hud, { paddingTop: insets.top + spacing.md }]} pointerEvents="box-none">
+        <View style={[styles.counterCard, { backgroundColor: colors.overlay }]}>
+          <AppText variant="caption" color="secondary">
+            {t(`movement.${exercise}`)} · {t('workout.setLabel', { count: hud.sets + 1 })}
+          </AppText>
+          <AppText variant="display" tabular style={{ color: colors.primary }}>
+            {hud.reps}
+          </AppText>
+          <AppText variant="caption" color="secondary">
+            {t('workout.target', { count: targetReps })} · {t('workout.total', { count: hud.total })}
+          </AppText>
+        </View>
+
+        {hud.phase === 'resting' && hud.restLeftS > 0 ? (
+          <View style={[styles.banner, { backgroundColor: colors.overlay }]}>
+            <AppText variant="bodyBold">{t('workout.rest', { count: hud.restLeftS })}</AppText>
+          </View>
+        ) : null}
+
+        {feedbackKey != null ? (
+          <View style={[styles.banner, { backgroundColor: colors.overlay }]}>
+            <AppText variant="body">{t(feedbackKey)}</AppText>
+          </View>
+        ) : null}
+
+        {!hud.poseVisible && hud.phase === 'active' ? (
+          <View style={[styles.banner, { backgroundColor: colors.overlay }]}>
+            <AppText variant="body">{t('workout.noPose')}</AppText>
+          </View>
+        ) : null}
+      </View>
+
+      {/* Controls */}
+      <View
+        style={[styles.controls, { paddingBottom: insets.bottom + spacing.lg }]}
+        pointerEvents="box-none"
+      >
+        {hud.phase === 'active' ? (
+          <Button
+            variant="secondary"
+            label={t('workout.stopSet')}
+            onPress={() => sendCommand('stop')}
+          />
+        ) : (
+          <Button
+            label={hud.phase === 'resting' ? t('workout.nextSet') : t('workout.startSet')}
+            onPress={() => sendCommand('start')}
+          />
+        )}
+        <Button variant="ghost" label={t('workout.finish')} onPress={handleFinish} />
+      </View>
+    </View>
+  );
+}
+
+function feedbackMessageKey(event: string): string | null {
+  switch (event) {
+    case 'partial':
+      return 'workout.feedbackPartial';
+    case 'rejectedTooFast':
+      return 'workout.feedbackTooFast';
+    case 'rejectedForm':
+      return 'workout.feedbackForm';
+    case 'nearLockout':
+      return 'workout.feedbackLockout';
+    case 'setCompleted':
+      return 'workout.setCompleted';
+    case 'setRegistered':
+      return 'workout.setRegistered';
+    case 'setDiscarded':
+      return 'workout.setDiscarded';
+    default:
+      return null;
+  }
+}
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  hud: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+  counterCard: {
+    alignItems: 'center',
+    borderRadius: 16,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+  },
+  banner: {
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  controls: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+});
+
+export { SKELETON_FLOATS };

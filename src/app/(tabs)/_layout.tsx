@@ -20,6 +20,20 @@ function FlameIcon({ color, size = 24 }: { color: ColorValue; size?: number }) {
   );
 }
 
+function BoltIcon({ color, size = 24 }: { color: ColorValue; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M13 2 4.5 13.5h5.5L11 22l8.5-11.5H14L13 2Z"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 function PersonIcon({ color, size = 24 }: { color: ColorValue; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -59,6 +73,13 @@ export default function TabsLayout() {
         options={{
           title: t('tabs.today'),
           tabBarIcon: ({ color }) => <FlameIcon color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="move"
+        options={{
+          title: t('tabs.move'),
+          tabBarIcon: ({ color }) => <BoltIcon color={color} />,
         }}
       />
       <Tabs.Screen

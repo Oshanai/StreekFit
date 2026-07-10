@@ -108,10 +108,11 @@
 ## 3. Фаза 2 — Счётчик движения камерой (ядро, главный технический риск)
 
 ### 3.1 Камера и распознавание позы
-- [ ] `react-native-vision-camera` (v3+, frame processors)
-- [ ] Pose-модель: MediaPipe BlazePose / MoveNet (плагин или QuickPose SDK)
-- [ ] **Обработка кадров на нативном/worklet-потоке, НЕ через JS-мост** (см. раздел 11)
-- [ ] Лёгкий оверлей скелета
+- [x] `react-native-vision-camera` — **v5.1 (Nitro)** + `react-native-vision-camera-worklets` на общем `react-native-worklets` (том же, что у Reanimated 4)
+- [x] Pose-модель: **MoveNet SinglePose Lightning int8** (tflite, 2.9 МБ в `assets/models/`) через `react-native-fast-tflite` v3; маппинг 17 COCO-точек → BlazePose-слоты (`movenet.ts`)
+- [x] **Обработка кадров на worklet-потоке**: `useFrameOutput` → letterbox-ресайз в тензор (`frameTensor.ts`, аспект сохраняется — углы не искажаются) → `runSync` → FSM; в JS уходят только агрегаты через shared values, HUD поллит 4 Гц
+- [x] Лёгкий оверлей скелета (`SkeletonOverlay.tsx`: полилиния + суставы лучшей стороны, Reanimated animatedProps — без ре-рендера на кадр)
+> Код готов и собирается; точность подсчёта и отсутствие фризов проверяются на устройстве (dev client, критерий готовности фазы ниже).
 
 ### 3.2 Правила подсчёта (зашить точно)
 - [x] **Повтор засчитывается только при полной амплитуде:** (движок `src/features/movement/`, 30 тестов)
