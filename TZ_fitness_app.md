@@ -49,7 +49,7 @@
 - [x] Включить Hermes и New Architecture (дефолт SDK 57, + React Compiler)
 - [x] ESLint / Prettier, конвенция коммитов (conventional commits, см. AGENTS.md)
 - [x] Первый коммит + push в репозиторий
-- [ ] Настроить EAS Build + EAS Update — eas.json готов, ждёт `eas login`
+- [x] Настроить EAS Build + EAS Update — проект `@oshanai/streek-fit`, каналы development/preview/production
 
 ### 1.4 i18n — три языка с самого начала
 - [x] Поставить i18next + react-i18next + expo-localization
