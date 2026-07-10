@@ -7,9 +7,17 @@
  * - Two thresholds = hysteresis: sensor jitter around one line can never
  *   produce double counts.
  * - Partial reps are softly flagged («не в счёт») — no penalty.
- * - Tempo sanity: impossibly fast reps are rejected.
- * - Form breaks during the rep (e.g. sagging hips in a push-up) reject that
- *   rep softly.
+ * - Tempo sanity: impossibly fast reps are rejected, and each rejection
+ *   re-arms the tempo anchor so sustained bouncing can't accrue reps.
+ * - Form breaks anywhere between full extension and full extension
+ *   (descent approach included) reject that rep softly.
+ * - Teleport-to-depth protection: a descent only arms after at least one
+ *   frame inside the hysteresis band — pose-detection flickers that jump
+ *   straight from extension to depth are ignored (combined with the dwell
+ *   filter this absorbs multi-frame occlusion glitches). Any human-speed
+ *   descent at 15+ fps produces band frames, so real reps are unaffected.
+ * - Stalled lockout feedback: if the athlete stops just short of full
+ *   extension, the FSM emits 'nearLockout' instead of going silent.
  *
  * Plain objects + pure functions (no classes) so Reanimated worklets can own
  * the state on the UI thread without bridge crossings.
@@ -30,6 +38,13 @@ export type RepCounterConfig = {
    * Shallower wobbles are ignored as noise.
    */
   partialFeedbackBand: number;
+  /**
+   * While ascending, hovering within this many degrees below upThreshold
+   * counts as a stalled lockout (see stallFeedbackMs).
+   */
+  stallBand: number;
+  /** Hovering near lockout this long emits 'nearLockout' feedback. */
+  stallFeedbackMs: number;
 };
 
 export type RepPhase = 'up' | 'down';
@@ -40,12 +55,20 @@ export type RepCounterState = {
   validReps: number;
   /** Timestamp when the current descent crossed downThreshold. */
   downSince: number;
-  /** Timestamp of the last counted rep (0 = none yet). */
+  /** Tempo anchor: last counted OR too-fast-rejected completion. */
   lastRepAt: number;
-  /** Set false if form broke at any point of the current descent. */
+  /** Whether the tempo anchor has ever been set. */
+  tempoArmed: boolean;
+  /** Set false if form broke anywhere during the current attempt. */
   formOkThisRep: boolean;
-  /** Lowest angle seen since last full extension (partial-attempt tracking). */
+  /** Form accumulator for the descent approach (up phase, below upThreshold). */
+  approachFormOk: boolean;
+  /** Lowest angle seen since last full extension (partial + arming tracking). */
   minAngleSinceUp: number;
+  /** Timestamp when the ascent entered the stall band (0 = not stalling). */
+  nearTopSince: number;
+  /** True once 'nearLockout' was emitted for the current stall. */
+  stallNotified: boolean;
 };
 
 export type RepEvent =
@@ -59,7 +82,9 @@ export type RepEvent =
   /** Full motion but form broke during the rep — not counted. */
   | 'rejectedForm'
   /** Meaningful attempt that never reached depth — softly not counted. */
-  | 'partial';
+  | 'partial'
+  /** Stuck just below full extension — prompt «выпрямись до конца». */
+  | 'nearLockout';
 
 export type RepSample = {
   /** Primary joint angle in degrees (elbow for push-ups, knee for squats). */
@@ -78,8 +103,12 @@ export function createRepCounter(config: RepCounterConfig): RepCounterState {
     validReps: 0,
     downSince: 0,
     lastRepAt: 0,
+    tempoArmed: false,
     formOkThisRep: true,
+    approachFormOk: true,
     minAngleSinceUp: 180,
+    nearTopSince: 0,
+    stallNotified: false,
   };
 }
 
@@ -89,25 +118,47 @@ export function createRepCounter(config: RepCounterConfig): RepCounterState {
  */
 export function updateRepCounter(state: RepCounterState, sample: RepSample): RepEvent {
   'worklet';
-  const { downThreshold, upThreshold, minDownDwellMs, minRepIntervalMs, partialFeedbackBand } =
-    state.config;
+  // Non-finite input (NaN/Infinity from degenerate landmarks) — skip frame.
+  if (!Number.isFinite(sample.angle) || !Number.isFinite(sample.timestampMs)) return 'none';
+
+  const {
+    downThreshold,
+    upThreshold,
+    minDownDwellMs,
+    minRepIntervalMs,
+    partialFeedbackBand,
+    stallBand,
+    stallFeedbackMs,
+  } = state.config;
 
   if (state.phase === 'up') {
-    if (sample.angle <= downThreshold) {
-      state.phase = 'down';
-      state.downSince = sample.timestampMs;
-      state.formOkThisRep = sample.formOk;
-      state.minAngleSinceUp = sample.angle;
-      return 'descent';
-    }
-
-    if (sample.angle < state.minAngleSinceUp) state.minAngleSinceUp = sample.angle;
-
-    // Back at full extension after a dip that never reached depth?
-    if (sample.angle >= upThreshold && state.minAngleSinceUp < upThreshold) {
+    if (sample.angle >= upThreshold) {
+      // Full extension: report a near-depth attempt, reset approach tracking.
+      const dipped = state.minAngleSinceUp < upThreshold;
       const attempted = state.minAngleSinceUp <= downThreshold + partialFeedbackBand;
       state.minAngleSinceUp = 180;
-      return attempted ? 'partial' : 'none';
+      state.approachFormOk = true;
+      return dipped && attempted ? 'partial' : 'none';
+    }
+
+    // Below upThreshold: a rep attempt is in progress — accumulate form.
+    if (!sample.formOk) state.approachFormOk = false;
+
+    const armed = state.minAngleSinceUp < upThreshold;
+    if (sample.angle < state.minAngleSinceUp) state.minAngleSinceUp = sample.angle;
+
+    if (sample.angle <= downThreshold) {
+      if (!armed) {
+        // Teleport from extension straight to depth — pose glitch, wait for
+        // a confirming frame (real descents pass through the band first).
+        return 'none';
+      }
+      state.phase = 'down';
+      state.downSince = sample.timestampMs;
+      state.formOkThisRep = state.approachFormOk;
+      state.nearTopSince = 0;
+      state.stallNotified = false;
+      return 'descent';
     }
 
     return 'none';
@@ -119,6 +170,9 @@ export function updateRepCounter(state: RepCounterState, sample: RepSample): Rep
   if (sample.angle >= upThreshold) {
     state.phase = 'up';
     state.minAngleSinceUp = 180;
+    state.approachFormOk = true;
+    state.nearTopSince = 0;
+    state.stallNotified = false;
 
     const dwellMs = sample.timestampMs - state.downSince;
     if (dwellMs < minDownDwellMs) {
@@ -131,13 +185,32 @@ export function updateRepCounter(state: RepCounterState, sample: RepSample): Rep
       return 'rejectedForm';
     }
 
-    if (state.lastRepAt !== 0 && sample.timestampMs - state.lastRepAt < minRepIntervalMs) {
+    if (state.tempoArmed && sample.timestampMs - state.lastRepAt < minRepIntervalMs) {
+      // Re-arm the anchor: sustained implausible bouncing accrues nothing.
+      state.lastRepAt = sample.timestampMs;
       return 'rejectedTooFast';
     }
 
     state.validReps += 1;
     state.lastRepAt = sample.timestampMs;
+    state.tempoArmed = true;
     return 'rep';
+  }
+
+  // Stalled just below lockout? Give feedback instead of silence.
+  if (sample.angle >= upThreshold - stallBand) {
+    if (state.nearTopSince === 0) {
+      state.nearTopSince = sample.timestampMs;
+    } else if (
+      !state.stallNotified &&
+      sample.timestampMs - state.nearTopSince >= stallFeedbackMs
+    ) {
+      state.stallNotified = true;
+      return 'nearLockout';
+    }
+  } else {
+    state.nearTopSince = 0;
+    state.stallNotified = false;
   }
 
   return 'none';
@@ -150,6 +223,8 @@ export const PUSHUP_CONFIG: RepCounterConfig = {
   minDownDwellMs: 150,
   minRepIntervalMs: 700,
   partialFeedbackBand: 25,
+  stallBand: 15,
+  stallFeedbackMs: 1200,
 };
 
 /** TZ §3.2 — squat: knee ~≤100° (hip to parallel), full stand ≥160°. */
@@ -159,4 +234,6 @@ export const SQUAT_CONFIG: RepCounterConfig = {
   minDownDwellMs: 200,
   minRepIntervalMs: 900,
   partialFeedbackBand: 25,
+  stallBand: 15,
+  stallFeedbackMs: 1200,
 };

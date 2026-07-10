@@ -70,7 +70,8 @@ export const MIN_VISIBILITY = 0.5;
 export function visible(...landmarks: Landmark[]): boolean {
   'worklet';
   for (const lm of landmarks) {
-    if (lm.visibility < MIN_VISIBILITY) return false;
+    // Negated >= so NaN visibility counts as NOT visible (NaN < x is false).
+    if (!(lm.visibility >= MIN_VISIBILITY)) return false;
   }
   return true;
 }

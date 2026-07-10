@@ -2,6 +2,10 @@
  * Exercise adapters: BlazePose landmarks → RepSample for the counter FSM.
  * Worklet-safe. Returns null when the pose is not reliable enough to judge —
  * the caller should skip the frame (never guess on low-confidence data).
+ *
+ * Camera assumption: SIDE VIEW (the camera screen instructs placement).
+ * pushupSample rejects frames whose torso projection says the view is
+ * frontal/overhead — 2D joint angles are meaningless there.
  */
 
 import { LM, jointAngle, midpoint, segmentInclination, visible, type Landmark } from './pose';
@@ -9,8 +13,18 @@ import type { RepSample } from './repCounter';
 
 /** Max torso deviation from horizontal for a valid push-up plank (deg). */
 const PUSHUP_MAX_TORSO_INCLINATION = 40;
-/** Min shoulder-hip-ankle straightness — catches sagging/piking hips (deg). */
-const PUSHUP_MIN_BODY_LINE = 140;
+/**
+ * Min shoulder-hip-ankle straightness — catches sagging/piking hips (deg).
+ * Review calibration: 140° only tripped at ~24 cm of hip sag; 155° rejects
+ * ~12-15 cm sags while tolerating landmark noise on honest planks (≥170°).
+ */
+const PUSHUP_MIN_BODY_LINE = 155;
+/**
+ * Side-view sanity: in a plank filmed from the side the shoulder→hip segment
+ * is mostly horizontal. If its x-extent collapses relative to its length the
+ * camera is frontal/overhead — angles are unjudgeable, skip the frame.
+ */
+const PUSHUP_MIN_TORSO_X_RATIO = 0.3;
 
 type Pose = readonly Landmark[];
 
@@ -43,10 +57,26 @@ export function pushupSample(pose: Pose, timestampMs: number): RepSample | null 
 
   if (!visible(shoulder, elbow, wrist, hip, ankle)) return null;
 
-  const torsoInclination = segmentInclination(
-    midpoint(pose[LM.leftShoulder], pose[LM.rightShoulder]),
-    midpoint(pose[LM.leftHip], pose[LM.rightHip]),
+  // Torso line: use both-side midpoints ONLY when the far side is trustworthy;
+  // in the usual side view the far side is occluded garbage — use the near side.
+  const farSideTrusted = visible(
+    pose[LM.leftShoulder],
+    pose[LM.rightShoulder],
+    pose[LM.leftHip],
+    pose[LM.rightHip],
   );
+  const torsoTop = farSideTrusted
+    ? midpoint(pose[LM.leftShoulder], pose[LM.rightShoulder])
+    : shoulder;
+  const torsoBottom = farSideTrusted ? midpoint(pose[LM.leftHip], pose[LM.rightHip]) : hip;
+
+  // Frontal/overhead camera → torso x-extent collapses → can't judge, skip.
+  const dx = Math.abs(torsoBottom.x - torsoTop.x);
+  const dy = Math.abs(torsoBottom.y - torsoTop.y);
+  const torsoLen = Math.sqrt(dx * dx + dy * dy);
+  if (torsoLen === 0 || dx / torsoLen < PUSHUP_MIN_TORSO_X_RATIO) return null;
+
+  const torsoInclination = segmentInclination(torsoTop, torsoBottom);
   const bodyLine = jointAngle(shoulder, hip, ankle);
 
   return {
@@ -60,6 +90,7 @@ export function pushupSample(pose: Pose, timestampMs: number): RepSample | null 
 /**
  * Squat: primary angle = knee (hip–knee–ankle) on the better-visible side.
  * No extra form gate in v1 — depth + full stand carry the quality bar.
+ * NOTE: 2D knee angle needs a side-ish view; the camera screen instructs it.
  */
 export function squatSample(pose: Pose, timestampMs: number): RepSample | null {
   'worklet';
