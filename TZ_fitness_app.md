@@ -33,8 +33,8 @@
 ### 1.1 Имя и аккаунты (делаешь сам в браузере)
 - [x] Имя выбрано: **Streek Fit** (в сторах как полное имя свободно)
 - [ ] Проверить домен `streekfit.com` у регистратора (фолбэк: `getstreekfit.com` / `streekfit.app`)
-- [ ] GitHub: создать пустой приватный репозиторий `streek-fit`
-- [ ] Supabase: создать проект `streek-fit-dev`, скопировать Project URL + anon key
+- [x] GitHub: создать пустой приватный репозиторий `streek-fit` (факт: `Oshanai/StreekFit`)
+- [x] Supabase: создать проект `streek-fit-dev`, скопировать Project URL + anon key (ref: `nripefskgxkspbeawktd`)
 - [ ] (Позже, не сейчас) Apple Developer $99/год, Google Play $25 разово
 
 ### 1.2 Локальная машина (разово)
@@ -43,34 +43,34 @@
 - [ ] Авторизоваться: `gh auth login`, `supabase login`, `eas login`
 
 ### 1.3 Скаффолд проекта (в Claude Code)
-- [ ] Expo **dev client** (НЕ managed), TypeScript
-- [ ] Структура папок по фичам: auth, profile, movement, leaderboard, achievements, shared/ui, i18n, lib/supabase
-- [ ] Поставить: react-navigation, @supabase/supabase-js, RevenueCat, react-native-reanimated
-- [ ] Включить Hermes и New Architecture (если стабильно)
-- [ ] ESLint / Prettier, конвенция коммитов
-- [ ] Первый коммит + push в репозиторий
-- [ ] Настроить EAS Build + EAS Update
+- [x] Expo **dev client** (НЕ managed), TypeScript — SDK 57, expo-router
+- [x] Структура папок по фичам: auth, profile, movement, leaderboard, achievements, shared/ui, i18n, lib/supabase
+- [x] Поставить: react-navigation (expo-router), @supabase/supabase-js, RevenueCat (react-native-purchases), react-native-reanimated
+- [x] Включить Hermes и New Architecture (дефолт SDK 57, + React Compiler)
+- [x] ESLint / Prettier, конвенция коммитов (conventional commits, см. AGENTS.md)
+- [x] Первый коммит + push в репозиторий
+- [ ] Настроить EAS Build + EAS Update — eas.json готов, ждёт `eas login`
 
 ### 1.4 i18n — три языка с самого начала
-- [ ] Поставить i18next + react-i18next + expo-localization
-- [ ] Языки: kk, ru, en. Файлы переводов, автоопределение системного языка
-- [ ] Переключатель языка в настройках
-- [ ] **Плавная анимация при смене языка (кроссфейд), а не резкий рефреш**
-- [ ] Правило: НИ ОДНОЙ строки хардкодом в UI — только через ключи переводов
+- [x] Поставить i18next + react-i18next + expo-localization
+- [x] Языки: kk, ru, en. Файлы переводов, автоопределение системного языка
+- [x] Переключатель языка в настройках (пока в профиле)
+- [x] **Плавная анимация при смене языка (кроссфейд), а не резкий рефреш** — `LanguageTransitionProvider`
+- [x] Правило: НИ ОДНОЙ строки хардкодом в UI — только через ключи переводов
 
 ### 1.5 Backend (Supabase)
-- [ ] Схема БД (см. раздел 2), RLS на ВСЕХ таблицах с первого дня
-- [ ] Supabase Auth: Google + Apple
+- [ ] Схема БД (см. раздел 2), RLS на ВСЕХ таблицах с первого дня — миграция написана (`supabase/migrations/`), ждёт `supabase login` для применения
+- [ ] Supabase Auth: Google + Apple — нужны OAuth-клиенты (Google Cloud Console) и Apple Developer
 - [ ] Storage-бакет под аватары/ассеты (или CDN)
-- [ ] `.env`: SUPABASE_URL, SUPABASE_ANON_KEY; собрать клиент, проверить коннект
+- [x] `.env`: SUPABASE_URL, SUPABASE_ANON_KEY; собрать клиент, проверить коннект (auth health 200 OK)
 
 ### 1.6 Дизайн-система (ДО первого экрана)
-- [ ] **Активировать UX/UI Pro Max скилл и вести через него ВСЕ UI-задачи**
-- [ ] Токены: палитра, типографика, спейсинг, радиусы
-- [ ] Базовые компоненты: кнопки, карточки, инпуты, бейджи, аватар, таб-бар
-- [ ] Тёмная тема сразу
-- [ ] Состояния loading / empty / error для каждого типа экрана
-- [ ] Система анимаций переходов (Reanimated) как общий слой
+- [x] **Активировать UX/UI Pro Max скилл и вести через него ВСЕ UI-задачи** — итог в `design-system/MASTER.md`
+- [x] Токены: палитра, типографика, спейсинг, радиусы (`src/shared/ui/tokens.ts`; шрифты Oswald+Inter — cyrillic-ext для казахского!)
+- [ ] Базовые компоненты: кнопки ✓, карточки ✓, таб-бар ✓; осталось: инпуты, бейджи, аватар
+- [x] Тёмная тема сразу (dark-first, светлая тоже)
+- [x] Состояния loading / empty / error для каждого типа экрана (`src/shared/ui/states.tsx`)
+- [x] Система анимаций переходов (Reanimated) как общий слой (`motion` токены + ScalePressable + LanguageTransition)
 - [ ] Визуальный язык бейджей: силуэт в круге + слот под тир
 
 **Критерий готовности Фазы 0:** приложение собирается на iOS и Android, есть заглушка на дизайн-системе, БД+Auth подключены, три языка переключаются с анимацией.
