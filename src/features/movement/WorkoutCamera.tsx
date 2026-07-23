@@ -58,6 +58,19 @@ import {
  */
 const ANALYZE_INTERVAL_MS = 80;
 
+/**
+ * Frame rotation is NOT guessed. Sensor orientation differs between camera
+ * positions and devices, so the first ~0.6 s of frames probe all four
+ * rotations and lock the one where MoveNet's summed keypoint confidence is
+ * highest. A watchdog re-probes if confidence collapses (e.g. after odd
+ * device rotations) — the system self-heals instead of counting garbage.
+ */
+const ROTATIONS = [0, 90, 180, 270] as const;
+const CALIBRATION_ROUNDS = 2;
+/** Below this summed score (max 17) the model effectively sees no person. */
+const LOW_SCORE = 3;
+const LOW_SCORE_STREAK_LIMIT = 30; // ~2.4 s of nothing → recalibrate
+
 type FrameCtx = {
   nonce: number;
   session: WorkoutSession;
@@ -67,6 +80,15 @@ type FrameCtx = {
   lastAnalyzedMs: number;
   lastCommandNonce: number;
   feedbackNonce: number;
+  cameraPosition: 'front' | 'back';
+  rotLocked: boolean;
+  rotBest: number;
+  rotScores: number[];
+  rotProbe: number;
+  rotRounds: number;
+  lowScoreStreak: number;
+  /** Lazily-created float32 view for models with a float input tensor. */
+  float32: Float32Array | null;
 };
 
 type FrameGlobal = { __streekWorkout?: FrameCtx };
@@ -110,6 +132,22 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
     () => (plugin.state === 'loaded' ? NitroModules.box(plugin.model) : null),
     [plugin],
   );
+  // Adapt to whatever input tensor the bundled model actually declares —
+  // the int8 MoveNet takes uint8, float16 variants take float32.
+  const modelWantsFloat =
+    plugin.state === 'loaded' && plugin.model.inputs[0]?.dataType === 'float32';
+  useEffect(() => {
+    if (plugin.state === 'loaded') {
+      console.log(
+        '[workout] tflite inputs:',
+        JSON.stringify(plugin.model.inputs),
+        'outputs:',
+        JSON.stringify(plugin.model.outputs),
+      );
+    } else if (plugin.state === 'error') {
+      console.log('[workout] tflite load error:', String(plugin.error));
+    }
+  }, [plugin]);
 
   // One nonce per mounted workout — the frame runtime resets its state on change.
   const [sessionNonce] = useState(() => Date.now() + Math.random());
@@ -163,9 +201,27 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
             lastAnalyzedMs: 0,
             lastCommandNonce: 0,
             feedbackNonce: 0,
+            cameraPosition: position,
+            rotLocked: false,
+            rotBest: 0,
+            rotScores: [0, 0, 0, 0],
+            rotProbe: 0,
+            rotRounds: 0,
+            lowScoreStreak: 0,
+            float32: null,
           };
           g.__streekWorkout = ctx;
           restDurationMs.value = ctx.session.sets.config.restDurationMs;
+        }
+        if (ctx.cameraPosition !== position) {
+          // Camera flipped mid-workout: sensors differ, re-probe rotation
+          // (the workout session itself keeps counting as-is).
+          ctx.cameraPosition = position;
+          ctx.rotLocked = false;
+          ctx.rotScores = [0, 0, 0, 0];
+          ctx.rotProbe = 0;
+          ctx.rotRounds = 0;
+          ctx.lowScoreStreak = 0;
         }
 
         // UI intents first, so start/stop feels instant even between analyses.
@@ -193,12 +249,9 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
         const srcW = frame.width;
         const srcH = frame.height;
         const dataMirrored = frame.isMirrored; // read before dispose
-        // Counter-rotate pixel data to upright (Frame.orientation semantics:
-        // 'right' = data is +90° from desired, so we rotate 270° CW to undo).
-        // If the on-device skeleton ever appears sideways, swap 90 ↔ 270 here.
-        const orientation = frame.orientation;
-        const deg =
-          orientation === 'right' ? 270 : orientation === 'left' ? 90 : orientation === 'down' ? 180 : 0;
+        // Rotation comes from calibration, not guesswork: while unlocked we
+        // probe a different candidate each analysed frame.
+        const deg = ctx.rotLocked ? ROTATIONS[ctx.rotBest] : ROTATIONS[ctx.rotProbe];
         const swap = deg === 90 || deg === 270;
         const uw = swap ? srcH : srcW; // upright frame dims
         const uh = swap ? srcW : srcH;
@@ -227,8 +280,62 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
           return;
         }
 
-        const outputs = ctx.model.runSync([ctx.scratch.tensor.buffer as ArrayBuffer]);
+        let inputBuffer: ArrayBuffer;
+        if (modelWantsFloat) {
+          if (ctx.float32 == null) ctx.float32 = new Float32Array(ctx.scratch.tensor.length);
+          const f = ctx.float32;
+          const u = ctx.scratch.tensor;
+          for (let i = 0; i < u.length; i += 1) f[i] = u[i];
+          inputBuffer = f.buffer as ArrayBuffer;
+        } else {
+          inputBuffer = ctx.scratch.tensor.buffer as ArrayBuffer;
+        }
+        const outputs = ctx.model.runSync([inputBuffer]);
         const keypoints = new Float32Array(outputs[0]);
+
+        // Summed model confidence (0..17) — calibration metric + watchdog.
+        let score = 0;
+        for (let k = 2; k < keypoints.length; k += 3) score += keypoints[k];
+
+        if (!ctx.rotLocked) {
+          ctx.rotScores[ctx.rotProbe] += score;
+          ctx.rotProbe = (ctx.rotProbe + 1) % ROTATIONS.length;
+          if (ctx.rotProbe === 0) {
+            ctx.rotRounds += 1;
+            if (ctx.rotRounds >= CALIBRATION_ROUNDS) {
+              let best = 0;
+              for (let i = 1; i < ROTATIONS.length; i += 1) {
+                if (ctx.rotScores[i] > ctx.rotScores[best]) best = i;
+              }
+              ctx.rotBest = best;
+              ctx.rotLocked = true;
+              console.log(
+                `[workout] rotation locked at ${ROTATIONS[best]}° (scores: ${ctx.rotScores
+                  .map((s) => s.toFixed(1))
+                  .join(' / ')})`,
+              );
+            }
+          }
+          // Don't feed the engine with probe frames — half are sideways.
+          poseOk.value = false;
+          skeleton.value = [];
+          return;
+        }
+
+        if (score < LOW_SCORE) {
+          ctx.lowScoreStreak += 1;
+          if (ctx.lowScoreStreak > LOW_SCORE_STREAK_LIMIT) {
+            ctx.rotLocked = false;
+            ctx.rotScores = [0, 0, 0, 0];
+            ctx.rotProbe = 0;
+            ctx.rotRounds = 0;
+            ctx.lowScoreStreak = 0;
+            return;
+          }
+        } else {
+          ctx.lowScoreStreak = 0;
+        }
+
         movenetToLandmarks(keypoints, ctx.slots);
 
         const outcome = processFrame(ctx.session, ctx.slots, now);
@@ -565,8 +672,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   demoFigure: {
-    width: 210,
-    height: 190,
+    width: 260,
+    height: 208,
   },
   demoText: {
     textAlign: 'center',
