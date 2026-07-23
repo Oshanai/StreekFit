@@ -25,8 +25,11 @@ import {
   useFrameOutput,
 } from 'react-native-vision-camera';
 
-import { AppText, Button, LoadingState, ErrorState, spacing, useTheme } from '@/shared/ui';
+import Svg, { Path } from 'react-native-svg';
 
+import { AppText, Button, LoadingState, ErrorState, ScalePressable, spacing, useTheme } from '@/shared/ui';
+
+import { DemoFigure } from './DemoFigure';
 import { createTensorScratch, packPixelsToTensor, type TensorScratch } from './frameTensor';
 import {
   MOVENET_INPUT_SIZE,
@@ -88,6 +91,10 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
     const sub = AppState.addEventListener('change', (s) => setAppActive(s === 'active'));
     return () => sub.remove();
   }, []);
+
+  // Front by default: the athlete places the phone facing themselves and can
+  // watch the counter while moving. Back stays one tap away.
+  const [position, setPosition] = useState<'front' | 'back'>('front');
 
   const { hasPermission, requestPermission, canRequestPermission } = useCameraPermission();
   useEffect(() => {
@@ -185,6 +192,7 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
 
         const srcW = frame.width;
         const srcH = frame.height;
+        const dataMirrored = frame.isMirrored; // read before dispose
         // Counter-rotate pixel data to upright (Frame.orientation semantics:
         // 'right' = data is +90° from desired, so we rotate 270° CW to undo).
         // If the on-device skeleton ever appears sideways, swap 90 ↔ 270 here.
@@ -267,7 +275,7 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
             ];
         // Overlay space = upright frame dims (the preview shows upright too).
         const tf = letterboxTransform(uw, uh);
-        const pts: number[] = [uw, uh];
+        const pts: number[] = [uw, uh, dataMirrored ? 1 : 0];
         let visibleCount = 0;
         for (let i = 0; i < chain.length; i += 1) {
           const lm = slots[chain[i]];
@@ -378,11 +386,40 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
       <Camera
         style={StyleSheet.absoluteFill}
         isActive={appActive}
-        device="back"
+        device={position}
         outputs={[frameOutput]}
         resizeMode="contain"
       />
-      <SkeletonOverlay skeleton={skeleton} />
+      <SkeletonOverlay skeleton={skeleton} isFront={position === 'front'} />
+
+      {/* Positioning demo — looping stick-figure reps until the first set. */}
+      {hud.phase === 'idle' ? (
+        <View style={styles.demoWrap} pointerEvents="none">
+          <View style={[styles.demoCard, { backgroundColor: colors.overlay }]}>
+            <AppText variant="bodyBold" style={styles.demoText}>
+              {t('workout.demoTitle')}
+            </AppText>
+            <View style={styles.demoFigure}>
+              <DemoFigure exercise={exercise} />
+            </View>
+            <AppText variant="caption" color="secondary" style={styles.demoText}>
+              {t('workout.demoHint')}
+            </AppText>
+          </View>
+        </View>
+      ) : null}
+
+      {/* Camera flip — top right, under the safe area. */}
+      <View style={[styles.flipWrap, { top: insets.top + spacing.md }]}>
+        <ScalePressable
+          onPress={() => setPosition((p) => (p === 'front' ? 'back' : 'front'))}
+          accessibilityLabel={t('workout.flipCamera')}
+        >
+          <View style={[styles.flipButton, { backgroundColor: colors.overlay }]}>
+            <FlipIcon color={colors.textPrimary} />
+          </View>
+        </ScalePressable>
+      </View>
 
       {/* HUD */}
       <View style={[styles.hud, { paddingTop: insets.top + spacing.md }]} pointerEvents="box-none">
@@ -440,6 +477,20 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
   );
 }
 
+function FlipIcon({ color }: { color: string }) {
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M4 8.5A8.4 8.4 0 0 1 12 4c3.2 0 6 1.7 7.4 4.3M20 15.5A8.4 8.4 0 0 1 12 20c-3.2 0-6-1.7-7.4-4.3M17.5 8.5H20V6M6.5 15.5H4V18"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 function feedbackMessageKey(event: string): string | null {
   switch (event) {
     case 'partial':
@@ -493,6 +544,43 @@ const styles = StyleSheet.create({
     right: 0,
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
+  },
+  demoWrap: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  demoCard: {
+    alignItems: 'center',
+    borderRadius: 20,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.xs,
+    maxWidth: 320,
+    width: '100%',
+  },
+  demoFigure: {
+    width: 210,
+    height: 190,
+  },
+  demoText: {
+    textAlign: 'center',
+  },
+  flipWrap: {
+    position: 'absolute',
+    right: spacing.lg,
+  },
+  flipButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

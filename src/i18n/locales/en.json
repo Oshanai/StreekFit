@@ -104,6 +104,9 @@
     "permissionGrant": "Allow camera",
     "modelError": "Couldn't load the recognition model. Reinstall the app or contact us.",
     "unavailableTitle": "Phone only",
-    "unavailableBody": "Camera rep counting works in the mobile app. Open Streek Fit on your phone."
+    "unavailableBody": "Camera rep counting works in the mobile app. Open Streek Fit on your phone.",
+    "flipCamera": "Flip camera",
+    "demoTitle": "Set up like the example",
+    "demoHint": "Phone side-on to you, whole body in frame. Start when you're ready."
   }
 }
