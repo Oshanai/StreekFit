@@ -2,10 +2,15 @@ import { createTensorScratch, packPixelsToTensor } from '../frameTensor';
 import {
   MOVENET_INPUT_SIZE,
   MOVENET_KEYPOINTS,
+  computeNextCrop,
   createLandmarkSlots,
+  landmarksToPixelsFromCrop,
+  landmarksToPixelsFromSquare,
   letterboxTransform,
   movenetToLandmarks,
+  smoothCrop,
   squareToFrame,
+  uprightCropToSensorRect,
 } from '../movenet';
 import { LM } from '../pose';
 import { beginSet, createWorkoutSession, processFrame } from '../workoutSession';
@@ -164,6 +169,112 @@ describe('packPixelsToTensor — letterbox placement of a pre-resized box', () =
     const scratch = createTensorScratch();
     expect(packPixelsToTensor(new Uint8Array(16), 2, 2, 'unknown', scratch)).toBe(false);
     expect(packPixelsToTensor(new Uint8Array(300 * 10 * 4), 300, 10, 'RGBA', scratch)).toBe(false);
+  });
+});
+
+describe('smart crop (MoveNet tracking window)', () => {
+  it('maps square-space landmarks to upright pixels (letterboxed portrait)', () => {
+    const slots = createLandmarkSlots();
+    // portrait 1080×1920: content occupies x ∈ [0.21875, 0.78125] of the square
+    slots[LM.leftHip].x = 0.5;
+    slots[LM.leftHip].y = 0.5;
+    slots[LM.leftHip].visibility = 0.9;
+    landmarksToPixelsFromSquare(slots, 1080, 1920);
+    expect(slots[LM.leftHip].x).toBeCloseTo(540, 3);
+    expect(slots[LM.leftHip].y).toBeCloseTo(960, 3);
+  });
+
+  it('maps crop-space landmarks to upright pixels', () => {
+    const slots = createLandmarkSlots();
+    slots[LM.leftKnee].x = 0.5;
+    slots[LM.leftKnee].y = 0.25;
+    landmarksToPixelsFromCrop(slots, { x: 100, y: 200, size: 400 });
+    expect(slots[LM.leftKnee].x).toBe(300);
+    expect(slots[LM.leftKnee].y).toBe(300);
+  });
+
+  it('builds a square window around confident joints, expanded and clamped in-frame', () => {
+    const slots = createLandmarkSlots();
+    const set = (i: number, x: number, y: number) => {
+      slots[i].x = x;
+      slots[i].y = y;
+      slots[i].visibility = 0.8;
+    };
+    // person: 200×500 px bbox in a 1080×1920 frame
+    set(LM.leftShoulder, 400, 600);
+    set(LM.rightShoulder, 600, 600);
+    set(LM.leftHip, 420, 900);
+    set(LM.rightHip, 580, 900);
+    set(LM.leftAnkle, 450, 1100);
+
+    const crop = computeNextCrop(slots, 1080, 1920);
+    expect(crop).not.toBeNull();
+    // size = max(200, 500) * 1.9 = 950; center (500, 850)
+    expect(crop!.size).toBeCloseTo(950, 3);
+    expect(crop!.x).toBeCloseTo(500 - 475, 3);
+    expect(crop!.y).toBeCloseTo(850 - 475, 3);
+    // window stays inside the frame
+    expect(crop!.x).toBeGreaterThanOrEqual(0);
+    expect(crop!.y + crop!.size).toBeLessThanOrEqual(1920);
+  });
+
+  it('returns null without enough confident joints (falls back to search)', () => {
+    const slots = createLandmarkSlots();
+    slots[LM.leftShoulder].visibility = 0.9; // one joint is not a person
+    expect(computeNextCrop(slots, 1080, 1920)).toBeNull();
+  });
+
+  it('never shrinks the window below 40% of the short side', () => {
+    const slots = createLandmarkSlots();
+    const set = (i: number, x: number, y: number) => {
+      slots[i].x = x;
+      slots[i].y = y;
+      slots[i].visibility = 0.8;
+    };
+    // tiny bbox — distant person
+    set(LM.leftShoulder, 500, 500);
+    set(LM.rightShoulder, 520, 500);
+    set(LM.leftHip, 505, 540);
+    set(LM.rightHip, 515, 540);
+    const crop = computeNextCrop(slots, 1080, 1920)!;
+    expect(crop.size).toBeCloseTo(1080 * 0.4, 3);
+  });
+
+  it('smooths the window toward the target', () => {
+    const s = smoothCrop({ x: 0, y: 0, size: 400 }, { x: 100, y: 200, size: 500 });
+    expect(s.x).toBeCloseTo(30);
+    expect(s.y).toBeCloseTo(60);
+    expect(s.size).toBeCloseTo(430);
+  });
+
+  it('rotates the crop into sensor space for every calibrated rotation', () => {
+    // sensor 1920×1080, upright (deg 90/270) = 1080×1920
+    const crop = { x: 100, y: 200, size: 400 };
+
+    const r0 = uprightCropToSensorRect(crop, 0, 1080, 1920);
+    expect(r0).toEqual({ x0: 100, y0: 200, x1: 500, y1: 600 });
+
+    const r90 = uprightCropToSensorRect(crop, 90, 1920, 1080);
+    expect(r90).toEqual({ x0: 200, y0: 1080 - 500, x1: 600, y1: 1080 - 100 });
+
+    const r270 = uprightCropToSensorRect(crop, 270, 1920, 1080);
+    expect(r270).toEqual({ x0: 1920 - 600, y0: 100, x1: 1920 - 200, y1: 500 });
+
+    const r180 = uprightCropToSensorRect({ x: 100, y: 150, size: 200 }, 180, 1000, 800);
+    expect(r180).toEqual({ x0: 700, y0: 450, x1: 900, y1: 650 });
+
+    // every rect is the right size and inside the sensor
+    for (const [r, sw, sh] of [
+      [r90, 1920, 1080] as const,
+      [r270, 1920, 1080] as const,
+    ]) {
+      expect(r.x1 - r.x0).toBeCloseTo(400);
+      expect(r.y1 - r.y0).toBeCloseTo(400);
+      expect(r.x0).toBeGreaterThanOrEqual(0);
+      expect(r.y0).toBeGreaterThanOrEqual(0);
+      expect(r.x1).toBeLessThanOrEqual(sw);
+      expect(r.y1).toBeLessThanOrEqual(sh);
+    }
   });
 });
 

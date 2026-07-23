@@ -33,10 +33,14 @@ import { DemoFigure } from './DemoFigure';
 import { createTensorScratch, packPixelsToTensor, type TensorScratch } from './frameTensor';
 import {
   MOVENET_INPUT_SIZE,
+  computeNextCrop,
   createLandmarkSlots,
-  letterboxTransform,
+  landmarksToPixelsFromCrop,
+  landmarksToPixelsFromSquare,
   movenetToLandmarks,
-  squareToFrame,
+  smoothCrop,
+  uprightCropToSensorRect,
+  type CropRegion,
 } from './movenet';
 import type { Landmark } from './pose';
 import { LM } from './pose';
@@ -96,6 +100,8 @@ type FrameCtx = {
   lowScoreStreak: number;
   /** Lazily-created float32 view for models with a float input tensor. */
   float32: Float32Array | null;
+  /** Tracking window around the athlete (upright pixels); null = searching. */
+  crop: CropRegion | null;
 };
 
 type FrameGlobal = { __streekWorkout?: FrameCtx };
@@ -216,6 +222,7 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
             rotRounds: 0,
             lowScoreStreak: 0,
             float32: null,
+            crop: null,
           };
           g.__streekWorkout = ctx;
           restDurationMs.value = ctx.session.sets.config.restDurationMs;
@@ -229,6 +236,7 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
           ctx.rotProbe = 0;
           ctx.rotRounds = 0;
           ctx.lowScoreStreak = 0;
+          ctx.crop = null;
         }
 
         // UI intents first, so start/stop feels instant even between analyses.
@@ -266,11 +274,21 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
         const contentW = Math.max(1, Math.round((uw / maxDim) * MOVENET_INPUT_SIZE));
         const contentH = Math.max(1, Math.round((uh / maxDim) * MOVENET_INPUT_SIZE));
 
-        // Native downscale of the full frame to the ≤192px content box, THEN
-        // rotate the tiny image — never the full-res buffer. All sync nitro
-        // calls on this worklet thread; JS touches only ~80 KB of pixels.
+        // Native downscale to ≤192px BEFORE rotating — never touch the
+        // full-res buffer. While tracking, crop the athlete's square first
+        // (MoveNet wants the person filling the input); while searching or
+        // calibrating, letterbox the whole frame to find them anywhere.
+        const activeCrop = ctx.rotLocked ? ctx.crop : null;
         const full = HybridFrameConverter.convertFrameToImage(frame);
-        const small = full.resize(swap ? contentH : contentW, swap ? contentW : contentH);
+        let small;
+        if (activeCrop != null) {
+          const r = uprightCropToSensorRect(activeCrop, deg, srcW, srcH);
+          small = full
+            .crop(Math.round(r.x0), Math.round(r.y0), Math.round(r.x1), Math.round(r.y1))
+            .resize(MOVENET_INPUT_SIZE, MOVENET_INPUT_SIZE);
+        } else {
+          small = full.resize(swap ? contentH : contentW, swap ? contentW : contentH);
+        }
         disposeFrame(); // `small` owns its pixels — free the camera pool slot now
         const upright = deg === 0 ? small : small.rotate(deg, false);
         const raw = upright.toRawPixelData(false);
@@ -359,6 +377,15 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
         }
 
         movenetToLandmarks(keypoints, ctx.slots);
+        // Into upright PIXELS (aspect-true → angles stay correct), then
+        // update the tracking window for the next frame.
+        if (activeCrop != null) {
+          landmarksToPixelsFromCrop(ctx.slots, activeCrop);
+        } else {
+          landmarksToPixelsFromSquare(ctx.slots, uw, uh);
+        }
+        const nextCrop = computeNextCrop(ctx.slots, uw, uh);
+        ctx.crop = nextCrop == null ? null : smoothCrop(ctx.crop, nextCrop);
 
         const outcome = processFrame(ctx.session, ctx.slots, now);
         poseOk.value = outcome.poseUsable;
@@ -402,14 +429,13 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
               LM.rightKnee,
               LM.rightAnkle,
             ];
-        // Overlay space = upright frame dims (the preview shows upright too).
-        const tf = letterboxTransform(uw, uh);
+        // Overlay space = upright frame dims (the preview shows upright too);
+        // slots are already upright pixels — just normalize.
         const pts: number[] = [uw, uh, dataMirrored ? 1 : 0];
         let visibleCount = 0;
         for (let i = 0; i < chain.length; i += 1) {
           const lm = slots[chain[i]];
-          const p = squareToFrame(lm.x, lm.y, tf, uw, uh);
-          pts.push(p.x, p.y, lm.visibility);
+          pts.push(lm.x / uw, lm.y / uh, lm.visibility);
           if (lm.visibility >= 0.35) visibleCount += 1;
         }
         skeleton.value = visibleCount >= 4 ? pts : [];

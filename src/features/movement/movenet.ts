@@ -121,3 +121,128 @@ export function squareToFrame(
     y: ((y - t.offsetY) * maxDim) / srcH,
   };
 }
+
+// ---------------------------------------------------------------- smart crop
+// MoveNet is built to see a person FILLING the input; Google's reference
+// pipeline always crops around the subject and so do we: search the whole
+// frame first, then track with a square crop around the confident joints.
+// All slot coordinates downstream of the mapping helpers are PIXELS in the
+// upright frame — pixel space is aspect-true, so joint angles stay correct.
+
+/** Square tracking window in upright-frame PIXELS. */
+export type CropRegion = { x: number; y: number; size: number };
+
+/** Body slots that vote for the crop (face points excluded on purpose). */
+const CROP_SLOTS: readonly number[] = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+const CROP_MIN_JOINT_VIS = 0.4;
+const CROP_MIN_JOINTS = 4;
+/** Expansion of the joint bbox — room for the next movement phase. */
+const CROP_EXPAND = 1.9;
+/** Never tighter than this fraction of the short side (whole person visible). */
+const CROP_MIN_FRACTION = 0.4;
+
+/** Model square coords → upright pixels for a full-frame letterboxed input. Mutates slots. */
+export function landmarksToPixelsFromSquare(slots: Landmark[], uw: number, uh: number): void {
+  'worklet';
+  const maxDim = uw > uh ? uw : uh;
+  const offX = (1 - uw / maxDim) / 2;
+  const offY = (1 - uh / maxDim) / 2;
+  for (let i = 0; i < slots.length; i += 1) {
+    const lm = slots[i];
+    lm.x = (lm.x - offX) * maxDim;
+    lm.y = (lm.y - offY) * maxDim;
+  }
+}
+
+/** Model square coords → upright pixels for a cropped input. Mutates slots. */
+export function landmarksToPixelsFromCrop(slots: Landmark[], crop: CropRegion): void {
+  'worklet';
+  for (let i = 0; i < slots.length; i += 1) {
+    const lm = slots[i];
+    lm.x = crop.x + lm.x * crop.size;
+    lm.y = crop.y + lm.y * crop.size;
+  }
+}
+
+/**
+ * Next tracking window from the confident joints (slots in upright pixels),
+ * or null when the person is not reliable enough — caller falls back to the
+ * full-frame search.
+ */
+export function computeNextCrop(slots: Landmark[], uw: number, uh: number): CropRegion | null {
+  'worklet';
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  let found = 0;
+  for (let i = 0; i < CROP_SLOTS.length; i += 1) {
+    const lm = slots[CROP_SLOTS[i]];
+    if (lm.visibility < CROP_MIN_JOINT_VIS) continue;
+    found += 1;
+    if (lm.x < minX) minX = lm.x;
+    if (lm.y < minY) minY = lm.y;
+    if (lm.x > maxX) maxX = lm.x;
+    if (lm.y > maxY) maxY = lm.y;
+  }
+  if (found < CROP_MIN_JOINTS) return null;
+
+  const shortSide = uw < uh ? uw : uh;
+  const bboxW = maxX - minX;
+  const bboxH = maxY - minY;
+  let size = (bboxW > bboxH ? bboxW : bboxH) * CROP_EXPAND;
+  const minSize = shortSide * CROP_MIN_FRACTION;
+  if (size < minSize) size = minSize;
+  if (size > shortSide) size = shortSide;
+
+  let x = (minX + maxX) / 2 - size / 2;
+  let y = (minY + maxY) / 2 - size / 2;
+  if (x < 0) x = 0;
+  if (y < 0) y = 0;
+  if (x + size > uw) x = uw - size;
+  if (y + size > uh) y = uh - size;
+  return { x, y, size };
+}
+
+/** Blend toward the new window to keep the crop from jittering. */
+export function smoothCrop(prev: CropRegion | null, next: CropRegion): CropRegion {
+  'worklet';
+  if (prev === null) return next;
+  const k = 0.3;
+  return {
+    x: prev.x + (next.x - prev.x) * k,
+    y: prev.y + (next.y - prev.y) * k,
+    size: prev.size + (next.size - prev.size) * k,
+  };
+}
+
+export type SensorRect = { x0: number; y0: number; x1: number; y1: number };
+
+/**
+ * Upright-space crop → sensor-space rectangle for Image.crop, which runs
+ * BEFORE the counter-rotation by `deg` (0|90|180|270 CW).
+ */
+export function uprightCropToSensorRect(
+  crop: CropRegion,
+  deg: number,
+  sensorW: number,
+  sensorH: number,
+): SensorRect {
+  'worklet';
+  const x0 = crop.x;
+  const y0 = crop.y;
+  const x1 = crop.x + crop.size;
+  const y1 = crop.y + crop.size;
+  if (deg === 90) {
+    // upright = sensor rotated 90° CW: (ux, uy) ← (sh - sy, sx)
+    return { x0: y0, y0: sensorH - x1, x1: y1, y1: sensorH - x0 };
+  }
+  if (deg === 180) {
+    return { x0: sensorW - x1, y0: sensorH - y1, x1: sensorW - x0, y1: sensorH - y0 };
+  }
+  if (deg === 270) {
+    // upright = sensor rotated 270° CW: (ux, uy) ← (sy, sw - sx)
+    return { x0: sensorW - y1, y0: x0, x1: sensorW - y0, y1: x1 };
+  }
+  return { x0, y0, x1, y1 };
+}
