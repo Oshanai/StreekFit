@@ -66,10 +66,17 @@ const ANALYZE_INTERVAL_MS = 80;
  * device rotations) — the system self-heals instead of counting garbage.
  */
 const ROTATIONS = [0, 90, 180, 270] as const;
-const CALIBRATION_ROUNDS = 2;
-/** Below this summed score (max 17) the model effectively sees no person. */
-const LOW_SCORE = 3;
-const LOW_SCORE_STREAK_LIMIT = 30; // ~2.4 s of nothing → recalibrate
+/** Earliest round a lock may happen (each round = one frame per rotation). */
+const CALIBRATION_MIN_ROUNDS = 2;
+/** Without a confident winner, restart the scoring window (stale noise out). */
+const CALIBRATION_WINDOW_ROUNDS = 6;
+/** A real upright person averages well above this per probe frame (max 17). */
+const MIN_LOCK_AVG = 4;
+/** The winner must beat the runner-up by this factor — near-ties keep probing. */
+const LOCK_MARGIN = 1.2;
+/** Sustained scores below this while locked = probably locked wrong → re-probe. */
+const LOW_SCORE = 6;
+const LOW_SCORE_STREAK_LIMIT = 40; // ~3.2 s
 
 type FrameCtx = {
   nonce: number;
@@ -302,18 +309,33 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
           ctx.rotProbe = (ctx.rotProbe + 1) % ROTATIONS.length;
           if (ctx.rotProbe === 0) {
             ctx.rotRounds += 1;
-            if (ctx.rotRounds >= CALIBRATION_ROUNDS) {
+            if (ctx.rotRounds >= CALIBRATION_MIN_ROUNDS) {
               let best = 0;
               for (let i = 1; i < ROTATIONS.length; i += 1) {
                 if (ctx.rotScores[i] > ctx.rotScores[best]) best = i;
               }
-              ctx.rotBest = best;
-              ctx.rotLocked = true;
-              console.log(
-                `[workout] rotation locked at ${ROTATIONS[best]}° (scores: ${ctx.rotScores
-                  .map((s) => s.toFixed(1))
-                  .join(' / ')})`,
-              );
+              let runnerUp = 0;
+              for (let i = 0; i < ROTATIONS.length; i += 1) {
+                if (i !== best && ctx.rotScores[i] > runnerUp) runnerUp = ctx.rotScores[i];
+              }
+              const confident =
+                ctx.rotScores[best] >= MIN_LOCK_AVG * ctx.rotRounds &&
+                ctx.rotScores[best] >= LOCK_MARGIN * runnerUp;
+              if (confident) {
+                // Locks only on a clear winner over a really-seen person —
+                // an empty room keeps probing instead of locking onto noise.
+                ctx.rotBest = best;
+                ctx.rotLocked = true;
+                console.log(
+                  `[workout] rotation locked at ${ROTATIONS[best]}° after ${
+                    ctx.rotRounds
+                  } rounds (scores: ${ctx.rotScores.map((s) => s.toFixed(1)).join(' / ')})`,
+                );
+              } else if (ctx.rotRounds >= CALIBRATION_WINDOW_ROUNDS) {
+                // Stale window (athlete was walking into place) — start fresh.
+                ctx.rotScores = [0, 0, 0, 0];
+                ctx.rotRounds = 0;
+              }
             }
           }
           // Don't feed the engine with probe frames — half are sideways.
