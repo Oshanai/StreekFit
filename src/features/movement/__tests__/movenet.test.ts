@@ -10,7 +10,6 @@ import {
   movenetToLandmarks,
   smoothCrop,
   squareToFrame,
-  uprightCropToSensorRect,
 } from '../movenet';
 import { LM } from '../pose';
 import { beginSet, createWorkoutSession, processFrame } from '../workoutSession';
@@ -247,35 +246,6 @@ describe('smart crop (MoveNet tracking window)', () => {
     expect(s.size).toBeCloseTo(430);
   });
 
-  it('rotates the crop into sensor space for every calibrated rotation', () => {
-    // sensor 1920×1080, upright (deg 90/270) = 1080×1920
-    const crop = { x: 100, y: 200, size: 400 };
-
-    const r0 = uprightCropToSensorRect(crop, 0, 1080, 1920);
-    expect(r0).toEqual({ x0: 100, y0: 200, x1: 500, y1: 600 });
-
-    const r90 = uprightCropToSensorRect(crop, 90, 1920, 1080);
-    expect(r90).toEqual({ x0: 200, y0: 1080 - 500, x1: 600, y1: 1080 - 100 });
-
-    const r270 = uprightCropToSensorRect(crop, 270, 1920, 1080);
-    expect(r270).toEqual({ x0: 1920 - 600, y0: 100, x1: 1920 - 200, y1: 500 });
-
-    const r180 = uprightCropToSensorRect({ x: 100, y: 150, size: 200 }, 180, 1000, 800);
-    expect(r180).toEqual({ x0: 700, y0: 450, x1: 900, y1: 650 });
-
-    // every rect is the right size and inside the sensor
-    for (const [r, sw, sh] of [
-      [r90, 1920, 1080] as const,
-      [r270, 1920, 1080] as const,
-    ]) {
-      expect(r.x1 - r.x0).toBeCloseTo(400);
-      expect(r.y1 - r.y0).toBeCloseTo(400);
-      expect(r.x0).toBeGreaterThanOrEqual(0);
-      expect(r.y0).toBeGreaterThanOrEqual(0);
-      expect(r.x1).toBeLessThanOrEqual(sw);
-      expect(r.y1).toBeLessThanOrEqual(sh);
-    }
-  });
 });
 
 describe('workout session glue', () => {

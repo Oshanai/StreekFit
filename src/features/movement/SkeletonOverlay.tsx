@@ -19,7 +19,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { useAnimatedProps } from 'react-native-reanimated';
-import Svg, { Circle, Polyline } from 'react-native-svg';
+import Svg, { Circle, Line } from 'react-native-svg';
 import type { SharedValue } from 'react-native-reanimated';
 
 import { useTheme } from '@/shared/ui';
@@ -28,9 +28,14 @@ import { useTheme } from '@/shared/ui';
 export const SKELETON_FLOATS = 3 + 6 * 3;
 
 const JOINTS = 6;
+const SEGMENTS = JOINTS - 1;
 const MIN_JOINT_VISIBILITY = 0.35;
 
-const AnimatedPolyline = Animated.createAnimatedComponent(Polyline);
+// NOTE: segments are individual <Line> elements with NUMERIC animated props
+// (x1/y1/x2/y2) — animating a Polyline's `points` string via animatedProps
+// never reaches the native SVG node on the new architecture (field-observed:
+// dots rendered, lines didn't).
+const AnimatedLine = Animated.createAnimatedComponent(Line);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 type ViewBox = { w: number; h: number };
@@ -69,34 +74,20 @@ export function SkeletonOverlay({
     setViewBox({ w: width, h: height });
   };
 
-  const polylineProps = useAnimatedProps(() => {
-    const sk = skeleton.value;
-    if (sk.length < SKELETON_FLOATS || viewBox.w === 0) {
-      return { points: '', opacity: 0 };
-    }
-    const map = frameToViewFactory(sk, viewBox, isFront);
-    let points = '';
-    for (let i = 0; i < JOINTS; i += 1) {
-      const v = sk[3 + i * 3 + 2];
-      if (v < MIN_JOINT_VISIBILITY) continue; // skip unreliable joints
-      const p = map(sk[3 + i * 3], sk[3 + i * 3 + 1]);
-      points += `${p.x.toFixed(1)},${p.y.toFixed(1)} `;
-    }
-    return { points: points.trim(), opacity: 0.9 };
-  });
-
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none" onLayout={onLayout}>
       {viewBox.w > 0 ? (
         <Svg width={viewBox.w} height={viewBox.h}>
-          <AnimatedPolyline
-            animatedProps={polylineProps}
-            fill="none"
-            stroke={colors.primary}
-            strokeWidth={3}
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
+          {Array.from({ length: SEGMENTS }, (_, i) => (
+            <BoneSegment
+              key={i}
+              index={i}
+              skeleton={skeleton}
+              viewBox={viewBox}
+              isFront={isFront}
+              color={colors.primary}
+            />
+          ))}
           {Array.from({ length: JOINTS }, (_, i) => (
             <JointDot
               key={i}
@@ -111,6 +102,38 @@ export function SkeletonOverlay({
       ) : null}
     </View>
   );
+}
+
+/** One bone between chain joints i and i+1, hidden unless both ends are solid. */
+function BoneSegment({
+  index,
+  skeleton,
+  viewBox,
+  isFront,
+  color,
+}: {
+  index: number;
+  skeleton: SharedValue<number[]>;
+  viewBox: ViewBox;
+  isFront: boolean;
+  color: string;
+}) {
+  const props = useAnimatedProps(() => {
+    const sk = skeleton.value;
+    if (sk.length < SKELETON_FLOATS || viewBox.w === 0) {
+      return { x1: -10, y1: -10, x2: -10, y2: -10, opacity: 0 };
+    }
+    const va = sk[3 + index * 3 + 2];
+    const vb = sk[3 + (index + 1) * 3 + 2];
+    if (va < MIN_JOINT_VISIBILITY || vb < MIN_JOINT_VISIBILITY) {
+      return { x1: -10, y1: -10, x2: -10, y2: -10, opacity: 0 };
+    }
+    const map = frameToViewFactory(sk, viewBox, isFront);
+    const a = map(sk[3 + index * 3], sk[3 + index * 3 + 1]);
+    const b = map(sk[3 + (index + 1) * 3], sk[3 + (index + 1) * 3 + 1]);
+    return { x1: a.x, y1: a.y, x2: b.x, y2: b.y, opacity: 0.9 };
+  });
+  return <AnimatedLine animatedProps={props} stroke={color} strokeWidth={4} strokeLinecap="round" />;
 }
 
 function JointDot({

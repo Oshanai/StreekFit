@@ -39,7 +39,6 @@ import {
   landmarksToPixelsFromSquare,
   movenetToLandmarks,
   smoothCrop,
-  uprightCropToSensorRect,
   type CropRegion,
 } from './movenet';
 import type { Landmark } from './pose';
@@ -70,6 +69,10 @@ const ANALYZE_INTERVAL_MS = 80;
  * device rotations) — the system self-heals instead of counting garbage.
  */
 const ROTATIONS = [0, 90, 180, 270] as const;
+/** Mid-size upright working image: cheap to rotate, sharp enough to crop from. */
+const UPRIGHT_MID_MAX = 512;
+/** EMA weight of the newest frame — steadies both the overlay and the FSM. */
+const SMOOTH_ALPHA = 0.45;
 /** Earliest round a lock may happen (each round = one frame per rotation). */
 const CALIBRATION_MIN_ROUNDS = 2;
 /** Without a confident winner, restart the scoring window (stale noise out). */
@@ -102,6 +105,9 @@ type FrameCtx = {
   float32: Float32Array | null;
   /** Tracking window around the athlete (upright pixels); null = searching. */
   crop: CropRegion | null;
+  /** EMA-smoothed landmarks the engine and overlay actually consume. */
+  smooth: Landmark[];
+  trackLogged: boolean;
 };
 
 type FrameGlobal = { __streekWorkout?: FrameCtx };
@@ -223,6 +229,8 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
             lowScoreStreak: 0,
             float32: null,
             crop: null,
+            smooth: createLandmarkSlots(),
+            trackLogged: false,
           };
           g.__streekWorkout = ctx;
           restDurationMs.value = ctx.session.sets.config.restDurationMs;
@@ -274,24 +282,34 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
         const contentW = Math.max(1, Math.round((uw / maxDim) * MOVENET_INPUT_SIZE));
         const contentH = Math.max(1, Math.round((uh / maxDim) * MOVENET_INPUT_SIZE));
 
-        // Native downscale to ≤192px BEFORE rotating — never touch the
-        // full-res buffer. While tracking, crop the athlete's square first
-        // (MoveNet wants the person filling the input); while searching or
-        // calibrating, letterbox the whole frame to find them anywhere.
+        // Downscale natively, rotate the MID image, then crop in the very
+        // same upright space the landmarks live in. Landmarks and crops both
+        // come from images rotated by the same rotate() call, so the
+        // library's rotation direction convention cancels out entirely.
         const activeCrop = ctx.rotLocked ? ctx.crop : null;
-        const full = HybridFrameConverter.convertFrameToImage(frame);
-        let small;
+        const midScale = UPRIGHT_MID_MAX / (srcW > srcH ? srcW : srcH);
+        const midW = Math.max(1, Math.round(srcW * midScale));
+        const midH = Math.max(1, Math.round(srcH * midScale));
+        let img = HybridFrameConverter.convertFrameToImage(frame).resize(midW, midH);
+        disposeFrame(); // `img` owns its pixels — free the camera pool slot now
+        if (deg !== 0) img = img.rotate(deg, false);
+        // Upright mid dims (rounding-safe clamps for the crop below).
+        const umW = swap ? midH : midW;
+        const umH = swap ? midW : midH;
         if (activeCrop != null) {
-          const r = uprightCropToSensorRect(activeCrop, deg, srcW, srcH);
-          small = full
-            .crop(Math.round(r.x0), Math.round(r.y0), Math.round(r.x1), Math.round(r.y1))
-            .resize(MOVENET_INPUT_SIZE, MOVENET_INPUT_SIZE);
+          let cx0 = Math.round(activeCrop.x * midScale);
+          let cy0 = Math.round(activeCrop.y * midScale);
+          let cx1 = Math.round((activeCrop.x + activeCrop.size) * midScale);
+          let cy1 = Math.round((activeCrop.y + activeCrop.size) * midScale);
+          if (cx0 < 0) cx0 = 0;
+          if (cy0 < 0) cy0 = 0;
+          if (cx1 > umW) cx1 = umW;
+          if (cy1 > umH) cy1 = umH;
+          img = img.crop(cx0, cy0, cx1, cy1).resize(MOVENET_INPUT_SIZE, MOVENET_INPUT_SIZE);
         } else {
-          small = full.resize(swap ? contentH : contentW, swap ? contentW : contentH);
+          img = img.resize(contentW, contentH);
         }
-        disposeFrame(); // `small` owns its pixels — free the camera pool slot now
-        const upright = deg === 0 ? small : small.rotate(deg, false);
-        const raw = upright.toRawPixelData(false);
+        const raw = img.toRawPixelData(false);
 
         const ok = packPixelsToTensor(
           new Uint8Array(raw.buffer),
@@ -384,10 +402,32 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
         } else {
           landmarksToPixelsFromSquare(ctx.slots, uw, uh);
         }
-        const nextCrop = computeNextCrop(ctx.slots, uw, uh);
-        ctx.crop = nextCrop == null ? null : smoothCrop(ctx.crop, nextCrop);
 
-        const outcome = processFrame(ctx.session, ctx.slots, now);
+        // Temporal smoothing: the raw per-frame jitter of a fast pose model
+        // is exactly what made the overlay dots blink.
+        const sm = ctx.smooth;
+        for (let i = 0; i < ctx.slots.length; i += 1) {
+          const cur = ctx.slots[i];
+          const pr = sm[i];
+          if (cur.visibility >= 0.2 && pr.visibility >= 0.2) {
+            pr.x += (cur.x - pr.x) * SMOOTH_ALPHA;
+            pr.y += (cur.y - pr.y) * SMOOTH_ALPHA;
+            pr.visibility += (cur.visibility - pr.visibility) * 0.5;
+          } else {
+            pr.x = cur.x;
+            pr.y = cur.y;
+            pr.visibility = cur.visibility;
+          }
+        }
+
+        const nextCrop = computeNextCrop(sm, uw, uh);
+        ctx.crop = nextCrop == null ? null : smoothCrop(ctx.crop, nextCrop);
+        if (ctx.crop != null && !ctx.trackLogged) {
+          ctx.trackLogged = true;
+          console.log(`[workout] tracking engaged (crop ${Math.round(ctx.crop.size)}px)`);
+        }
+
+        const outcome = processFrame(ctx.session, sm, now);
         poseOk.value = outcome.poseUsable;
 
         if (outcome.repEvent !== 'none' || outcome.setEvent !== 'none') {
@@ -403,7 +443,7 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
         }
 
         // Skeleton for the better-visible side, in frame-normalized coords.
-        const slots = ctx.slots;
+        const slots = ctx.smooth;
         const leftVis =
           slots[LM.leftShoulder].visibility +
           slots[LM.leftElbow].visibility +

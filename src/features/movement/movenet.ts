@@ -216,33 +216,6 @@ export function smoothCrop(prev: CropRegion | null, next: CropRegion): CropRegio
   };
 }
 
-export type SensorRect = { x0: number; y0: number; x1: number; y1: number };
-
-/**
- * Upright-space crop → sensor-space rectangle for Image.crop, which runs
- * BEFORE the counter-rotation by `deg` (0|90|180|270 CW).
- */
-export function uprightCropToSensorRect(
-  crop: CropRegion,
-  deg: number,
-  sensorW: number,
-  sensorH: number,
-): SensorRect {
-  'worklet';
-  const x0 = crop.x;
-  const y0 = crop.y;
-  const x1 = crop.x + crop.size;
-  const y1 = crop.y + crop.size;
-  if (deg === 90) {
-    // upright = sensor rotated 90° CW: (ux, uy) ← (sh - sy, sx)
-    return { x0: y0, y0: sensorH - x1, x1: y1, y1: sensorH - x0 };
-  }
-  if (deg === 180) {
-    return { x0: sensorW - x1, y0: sensorH - y1, x1: sensorW - x0, y1: sensorH - y0 };
-  }
-  if (deg === 270) {
-    // upright = sensor rotated 270° CW: (ux, uy) ← (sy, sw - sx)
-    return { x0: sensorW - y1, y0: x0, x1: sensorW - y0, y1: x1 };
-  }
-  return { x0, y0, x1, y1 };
-}
+// (crop happens AFTER the mid-image is rotated upright, in the same space as
+// the landmarks — no sensor-space rectangle math, no dependence on the
+// underlying rotate() direction convention.)
