@@ -1,4 +1,4 @@
-import { createTensorScratch, frameToTensor } from '../frameTensor';
+import { createTensorScratch, packPixelsToTensor } from '../frameTensor';
 import {
   MOVENET_INPUT_SIZE,
   MOVENET_KEYPOINTS,
@@ -108,61 +108,62 @@ describe('letterbox geometry', () => {
   });
 });
 
-describe('frameToTensor — letterbox resize into 192×192×3', () => {
-  it('samples BGRA pixels into RGB and letterboxes a landscape frame', () => {
-    const srcW = 8;
-    const srcH = 4; // 2:1 → contentH = 96, padY = 48
-    const bytesPerRow = srcW * 4;
-    const pixels = new Uint8Array(srcH * bytesPerRow);
-    // Fill the whole frame with BGRA = (10, 20, 30, 255) → RGB (30, 20, 10)
-    for (let i = 0; i < pixels.length; i += 4) {
-      pixels[i] = 10;
-      pixels[i + 1] = 20;
-      pixels[i + 2] = 30;
-      pixels[i + 3] = 255;
+describe('packPixelsToTensor — letterbox placement of a pre-resized box', () => {
+  /** Fill a srcW×srcH buffer with one repeating pixel of `bpp` bytes. */
+  function solid(srcW: number, srcH: number, pixel: number[]) {
+    const bpp = pixel.length;
+    const buf = new Uint8Array(srcW * srcH * bpp);
+    for (let i = 0; i < buf.length; i += bpp) {
+      for (let c = 0; c < bpp; c += 1) buf[i + c] = pixel[c];
     }
+    return buf;
+  }
 
+  const px = (scratch: { tensor: Uint8Array }, x: number, y: number) => {
+    const i = (y * MOVENET_INPUT_SIZE + x) * 3;
+    return [scratch.tensor[i], scratch.tensor[i + 1], scratch.tensor[i + 2]];
+  };
+
+  it('centers a landscape BGRA box with black letterbox above and below', () => {
+    // 192×108 content (16:9 upright landscape) → padY = 42
+    const pixels = solid(192, 108, [10, 20, 30, 255]); // B,G,R,A → RGB (30,20,10)
     const scratch = createTensorScratch();
-    const ok = frameToTensor(pixels, srcW, srcH, bytesPerRow, 'rgb-bgra-8-bit', scratch);
-    expect(ok).toBe(true);
+    expect(packPixelsToTensor(pixels, 192, 108, 'BGRA', scratch)).toBe(true);
 
-    const size = MOVENET_INPUT_SIZE;
-    const px = (x: number, y: number) => {
-      const i = (y * size + x) * 3;
-      return [scratch.tensor[i], scratch.tensor[i + 1], scratch.tensor[i + 2]];
-    };
-    expect(px(96, 96)).toEqual([30, 20, 10]); // center = content
-    expect(px(96, 10)).toEqual([0, 0, 0]); // top letterbox padding
-    expect(px(96, 185)).toEqual([0, 0, 0]); // bottom letterbox padding
-    expect(px(0, 96)).toEqual([30, 20, 10]); // content spans full width
+    expect(px(scratch, 96, 96)).toEqual([30, 20, 10]); // center = content
+    expect(px(scratch, 96, 20)).toEqual([0, 0, 0]); // top padding
+    expect(px(scratch, 96, 175)).toEqual([0, 0, 0]); // bottom padding
+    expect(px(scratch, 0, 96)).toEqual([30, 20, 10]); // full width used
+    expect(px(scratch, 96, 42)).toEqual([30, 20, 10]); // first content row
+    expect(px(scratch, 96, 41)).toEqual([0, 0, 0]); // last padding row
   });
 
-  it('respects row stride padding and rgba layout', () => {
-    const srcW = 4;
-    const srcH = 4;
-    const bytesPerRow = srcW * 4 + 16; // padded stride
-    const pixels = new Uint8Array(srcH * bytesPerRow);
-    for (let y = 0; y < srcH; y += 1) {
-      for (let x = 0; x < srcW; x += 1) {
-        const i = y * bytesPerRow + x * 4;
-        pixels[i] = 200; // R
-        pixels[i + 1] = 100; // G
-        pixels[i + 2] = 50; // B
-        pixels[i + 3] = 255;
-      }
-    }
+  it('centers a portrait RGBA box with side letterbox (the phone case)', () => {
+    // 108×192 content (portrait 9:16) → padX = 42
+    const pixels = solid(108, 192, [200, 100, 50, 255]);
     const scratch = createTensorScratch();
-    expect(frameToTensor(pixels, srcW, srcH, bytesPerRow, 'rgb-rgba-8-bit', scratch)).toBe(true);
-    const c = (MOVENET_INPUT_SIZE / 2) | 0;
-    const i = (c * MOVENET_INPUT_SIZE + c) * 3;
-    expect([scratch.tensor[i], scratch.tensor[i + 1], scratch.tensor[i + 2]]).toEqual([
-      200, 100, 50,
-    ]);
+    expect(packPixelsToTensor(pixels, 108, 192, 'RGBA', scratch)).toBe(true);
+
+    expect(px(scratch, 96, 96)).toEqual([200, 100, 50]);
+    expect(px(scratch, 20, 96)).toEqual([0, 0, 0]); // left padding
+    expect(px(scratch, 175, 96)).toEqual([0, 0, 0]); // right padding
+    expect(px(scratch, 42, 96)).toEqual([200, 100, 50]); // first content column
   });
 
-  it('refuses unknown layouts instead of guessing channels', () => {
+  it('handles 3-byte RGB and ARGB layouts', () => {
     const scratch = createTensorScratch();
-    expect(frameToTensor(new Uint8Array(16), 2, 2, 8, 'yuv-420-8-bit-full', scratch)).toBe(false);
+    expect(packPixelsToTensor(solid(4, 4, [7, 8, 9]), 4, 4, 'RGB', scratch)).toBe(true);
+    const c = MOVENET_INPUT_SIZE >> 1;
+    expect(px(scratch, c, c)).toEqual([7, 8, 9]);
+
+    expect(packPixelsToTensor(solid(4, 4, [255, 1, 2, 3]), 4, 4, 'ARGB', scratch)).toBe(true);
+    expect(px(scratch, c, c)).toEqual([1, 2, 3]);
+  });
+
+  it('refuses unknown layouts and oversized boxes instead of guessing', () => {
+    const scratch = createTensorScratch();
+    expect(packPixelsToTensor(new Uint8Array(16), 2, 2, 'unknown', scratch)).toBe(false);
+    expect(packPixelsToTensor(new Uint8Array(300 * 10 * 4), 300, 10, 'RGBA', scratch)).toBe(false);
   });
 });
 

@@ -1,20 +1,14 @@
 /**
- * Camera frame → MoveNet input tensor, worklet-safe.
+ * Resized pixels → MoveNet input tensor, worklet-safe.
  *
- * Nearest-neighbour letterbox resize straight off the camera pixel buffer
- * into a reusable 192×192×3 RGB uint8 tensor. Aspect ratio is preserved
- * (padding stays black), so joint angles measured on model output are
- * geometrically correct — a stretched square would bend every angle.
- *
- * Runs inside the frame worklet: ~110k byte writes per analysed frame,
- * well under a frame interval on target devices, zero allocations after
- * the first call (buffers are created once per runtime and reused).
+ * Scaling and rotation happen NATIVELY (nitro-image resize/rotate on the
+ * camera worklet thread) — JS only shuffles channels of the already-small
+ * content box (≤192×192) into the letterboxed 192×192×3 RGB uint8 tensor.
+ * Padding stays black; aspect ratio was preserved by the native resize, so
+ * joint angles measured on model output are geometrically correct.
  */
 
 import { MOVENET_INPUT_SIZE } from './movenet';
-
-/** Channel layouts VisionCamera can deliver for target pixelFormat 'rgb'. */
-export type RgbLayout = 'rgb-bgra-8-bit' | 'rgb-rgba-8-bit' | 'rgb-rgb-8-bit';
 
 export type TensorScratch = {
   /** 192*192*3 uint8 RGB, letterboxed. Feed straight into runSync. */
@@ -29,64 +23,69 @@ export function createTensorScratch(): TensorScratch {
 }
 
 /**
- * Fill `scratch.tensor` from a camera pixel buffer.
- * Returns false (leaving the tensor untouched) for layouts we cannot read.
+ * Channel offsets per nitro-image RawPixelData.pixelFormat.
+ * Returns [bytesPerPixel, rOffset, gOffset, bOffset] or null when unreadable.
  */
-export function frameToTensor(
+function channelLayout(format: string): [number, number, number, number] | null {
+  'worklet';
+  switch (format) {
+    case 'RGBA':
+    case 'RGBX':
+      return [4, 0, 1, 2];
+    case 'BGRA':
+    case 'BGRX':
+      return [4, 2, 1, 0];
+    case 'ARGB':
+    case 'XRGB':
+      return [4, 1, 2, 3];
+    case 'ABGR':
+    case 'XBGR':
+      return [4, 3, 2, 1];
+    case 'RGB':
+      return [3, 0, 1, 2];
+    case 'BGR':
+      return [3, 2, 1, 0];
+    default:
+      return null;
+  }
+}
+
+/**
+ * Pack an already-resized content box (srcW×srcH ≤ 192×192, upright) into
+ * the center of the letterboxed tensor. Returns false for unknown layouts —
+ * the caller should skip the frame rather than guess channels.
+ */
+export function packPixelsToTensor(
   pixels: Uint8Array,
   srcW: number,
   srcH: number,
-  bytesPerRow: number,
-  layout: string,
+  pixelFormat: string,
   scratch: TensorScratch,
 ): boolean {
   'worklet';
-  let bpp: number;
-  let rOff: number;
-  let gOff: number;
-  let bOff: number;
-  if (layout === 'rgb-bgra-8-bit') {
-    bpp = 4;
-    rOff = 2;
-    gOff = 1;
-    bOff = 0;
-  } else if (layout === 'rgb-rgba-8-bit') {
-    bpp = 4;
-    rOff = 0;
-    gOff = 1;
-    bOff = 2;
-  } else if (layout === 'rgb-rgb-8-bit') {
-    bpp = 3;
-    rOff = 0;
-    gOff = 1;
-    bOff = 2;
-  } else {
-    return false;
-  }
+  const layout = channelLayout(pixelFormat);
+  if (layout === null) return false;
 
   const size = MOVENET_INPUT_SIZE;
+  if (srcW > size || srcH > size) return false;
+
+  const bpp = layout[0];
+  const rOff = layout[1];
+  const gOff = layout[2];
+  const bOff = layout[3];
+
   const out = scratch.tensor;
-  const maxDim = srcW > srcH ? srcW : srcH;
-  // Content box inside the square, in output pixels.
-  const contentW = Math.round((srcW / maxDim) * size);
-  const contentH = Math.round((srcH / maxDim) * size);
-  const padX = (size - contentW) >> 1;
-  const padY = (size - contentH) >> 1;
+  const padX = (size - srcW) >> 1;
+  const padY = (size - srcH) >> 1;
 
   out.fill(0);
 
-  for (let oy = 0; oy < contentH; oy += 1) {
-    // Nearest-neighbour source row for this output row.
-    let sy = Math.floor(((oy + 0.5) * srcH) / contentH);
-    if (sy >= srcH) sy = srcH - 1;
-    const srcRow = sy * bytesPerRow;
-    const outRow = ((oy + padY) * size + padX) * 3;
-
-    for (let ox = 0; ox < contentW; ox += 1) {
-      let sx = Math.floor(((ox + 0.5) * srcW) / contentW);
-      if (sx >= srcW) sx = srcW - 1;
-      const src = srcRow + sx * bpp;
-      const dst = outRow + ox * 3;
+  for (let y = 0; y < srcH; y += 1) {
+    const srcRow = y * srcW * bpp;
+    const outRow = ((y + padY) * size + padX) * 3;
+    for (let x = 0; x < srcW; x += 1) {
+      const src = srcRow + x * bpp;
+      const dst = outRow + x * 3;
       out[dst] = pixels[src + rOff];
       out[dst + 1] = pixels[src + gOff];
       out[dst + 2] = pixels[src + bOff];

@@ -18,12 +18,23 @@ import { useTensorflowModel, type TensorflowModel } from 'react-native-fast-tfli
 import { NitroModules, type BoxedHybridObject } from 'react-native-nitro-modules';
 import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Camera, useCameraPermission, useFrameOutput } from 'react-native-vision-camera';
+import {
+  Camera,
+  HybridFrameConverter,
+  useCameraPermission,
+  useFrameOutput,
+} from 'react-native-vision-camera';
 
 import { AppText, Button, LoadingState, ErrorState, spacing, useTheme } from '@/shared/ui';
 
-import { createTensorScratch, frameToTensor, type TensorScratch } from './frameTensor';
-import { createLandmarkSlots, movenetToLandmarks, squareToFrame, letterboxTransform } from './movenet';
+import { createTensorScratch, packPixelsToTensor, type TensorScratch } from './frameTensor';
+import {
+  MOVENET_INPUT_SIZE,
+  createLandmarkSlots,
+  letterboxTransform,
+  movenetToLandmarks,
+  squareToFrame,
+} from './movenet';
 import type { Landmark } from './pose';
 import { LM } from './pose';
 import { restRemainingMs, sessionSummary } from './setTracker';
@@ -37,8 +48,12 @@ import {
   type WorkoutSession,
 } from './workoutSession';
 
-/** ~20 fps analysis — plenty for rep counting, keeps the phone cool (TZ §11.1). */
-const ANALYZE_INTERVAL_MS = 50;
+/**
+ * ~12.5 fps analysis — a rep takes ≥700 ms, so the hysteresis FSM has 8+
+ * samples per rep. Lower rate = cooler phone and zero dropped-frame stalls
+ * (TZ §11.1 caps useful analysis at 15–20 fps anyway).
+ */
+const ANALYZE_INTERVAL_MS = 80;
 
 type FrameCtx = {
   nonce: number;
@@ -109,11 +124,15 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
   });
   const commandAck = useSharedValue(0);
 
+  // No targetResolution: constraining it dragged the WHOLE session (preview
+  // included) down to 640×480 — the blurry-preview bug. The session now
+  // negotiates native quality; the model path downscales natively instead.
+  // YUV: cheapest stream off the sensor; nitro-image converts during resize.
+  // No physical buffer rotation: rotating full-res buffers per frame stalls
+  // the pipeline — we rotate the tiny 192px image natively instead.
   const frameOutput = useFrameOutput({
-    targetResolution: { width: 640, height: 480 },
-    pixelFormat: 'rgb',
+    pixelFormat: 'yuv',
     dropFramesWhileBusy: true,
-    enablePhysicalBufferRotation: true,
     onFrame(frame) {
       'worklet';
       let disposed = false;
@@ -166,12 +185,35 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
 
         const srcW = frame.width;
         const srcH = frame.height;
-        const bytesPerRow = frame.bytesPerRow;
-        const layout = frame.pixelFormat;
-        const pixels = new Uint8Array(frame.getPixelBuffer());
-        disposeFrame(); // pixels are copied into the tensor path; free the pool slot early
+        // Counter-rotate pixel data to upright (Frame.orientation semantics:
+        // 'right' = data is +90° from desired, so we rotate 270° CW to undo).
+        // If the on-device skeleton ever appears sideways, swap 90 ↔ 270 here.
+        const orientation = frame.orientation;
+        const deg =
+          orientation === 'right' ? 270 : orientation === 'left' ? 90 : orientation === 'down' ? 180 : 0;
+        const swap = deg === 90 || deg === 270;
+        const uw = swap ? srcH : srcW; // upright frame dims
+        const uh = swap ? srcW : srcH;
+        const maxDim = uw > uh ? uw : uh;
+        const contentW = Math.max(1, Math.round((uw / maxDim) * MOVENET_INPUT_SIZE));
+        const contentH = Math.max(1, Math.round((uh / maxDim) * MOVENET_INPUT_SIZE));
 
-        const ok = frameToTensor(pixels, srcW, srcH, bytesPerRow, layout, ctx.scratch);
+        // Native downscale of the full frame to the ≤192px content box, THEN
+        // rotate the tiny image — never the full-res buffer. All sync nitro
+        // calls on this worklet thread; JS touches only ~80 KB of pixels.
+        const full = HybridFrameConverter.convertFrameToImage(frame);
+        const small = full.resize(swap ? contentH : contentW, swap ? contentW : contentH);
+        disposeFrame(); // `small` owns its pixels — free the camera pool slot now
+        const upright = deg === 0 ? small : small.rotate(deg, false);
+        const raw = upright.toRawPixelData(false);
+
+        const ok = packPixelsToTensor(
+          new Uint8Array(raw.buffer),
+          raw.width,
+          raw.height,
+          raw.pixelFormat,
+          ctx.scratch,
+        );
         if (!ok) {
           poseOk.value = false;
           return;
@@ -223,12 +265,13 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
               LM.rightKnee,
               LM.rightAnkle,
             ];
-        const tf = letterboxTransform(srcW, srcH);
-        const pts: number[] = [srcW, srcH];
+        // Overlay space = upright frame dims (the preview shows upright too).
+        const tf = letterboxTransform(uw, uh);
+        const pts: number[] = [uw, uh];
         let visibleCount = 0;
         for (let i = 0; i < chain.length; i += 1) {
           const lm = slots[chain[i]];
-          const p = squareToFrame(lm.x, lm.y, tf, srcW, srcH);
+          const p = squareToFrame(lm.x, lm.y, tf, uw, uh);
           pts.push(p.x, p.y, lm.visibility);
           if (lm.visibility >= 0.35) visibleCount += 1;
         }
