@@ -34,6 +34,20 @@ function BoltIcon({ color, size = 24 }: { color: ColorValue; size?: number }) {
   );
 }
 
+function TrophyIcon({ color, size = 24 }: { color: ColorValue; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M7 4h10v5a5 5 0 0 1-10 0V4ZM7 5H4.5v1.5A3.5 3.5 0 0 0 8 10M17 5h2.5v1.5A3.5 3.5 0 0 1 16 10M12 14v3.5m-3.5 3h7m-5.5 0v-3m4 3v-3"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 function PersonIcon({ color, size = 24 }: { color: ColorValue; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -80,6 +94,13 @@ export default function TabsLayout() {
         options={{
           title: t('tabs.move'),
           tabBarIcon: ({ color }) => <BoltIcon color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="leaderboard"
+        options={{
+          title: t('tabs.leaderboard'),
+          tabBarIcon: ({ color }) => <TrophyIcon color={color} />,
         }}
       />
       <Tabs.Screen

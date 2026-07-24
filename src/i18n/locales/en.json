@@ -91,6 +91,27 @@
     "steps": "Steps",
     "run": "Run"
   },
+  "lb": {
+    "title": "Leaderboard",
+    "city": "City",
+    "friends": "Friends",
+    "points_one": "{{count}} pt",
+    "points_other": "{{count}} pts",
+    "empty": "Nothing yet — close your day and enter this week's top",
+    "noCity": "Set your city in the profile to join the city board",
+    "locked": "Competition is for subscribers",
+    "lockedBody": "City and friends leaderboards unlock with a subscription. It's coming soon — keep your streak and add friends!",
+    "addFriend": "Friends",
+    "yourCode": "Your friend code",
+    "codeLabel": "Friend code",
+    "codePlaceholder": "e.g. a1b2c3d4",
+    "find": "Find",
+    "add": "Add",
+    "requestSent": "Request sent!",
+    "requestError": "Didn't work — check the code and try again",
+    "incoming": "Friend requests",
+    "accept": "Accept"
+  },
   "workout": {
     "cameraChip": "Camera",
     "targetHint": "Set target: {{count}}",
