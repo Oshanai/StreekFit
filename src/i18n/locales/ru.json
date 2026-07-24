@@ -110,6 +110,16 @@
     "steps": "Шаги",
     "run": "Бег"
   },
+  "share": {
+    "button": "Поделиться в сторис",
+    "daysStreak_one": "{{count}} день подряд",
+    "daysStreak_few": "{{count}} дня подряд",
+    "daysStreak_many": "{{count}} дней подряд",
+    "scoreLabel": "счёт дня",
+    "rankLabel": "в городе",
+    "catchUp": "Догони меня в Streek Fit",
+    "codeHint": "введи код во вкладке «Рейтинг»"
+  },
   "lb": {
     "title": "Рейтинг",
     "city": "Город",

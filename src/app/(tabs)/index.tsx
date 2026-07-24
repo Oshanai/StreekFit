@@ -4,10 +4,13 @@ import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '@/features/auth/AuthProvider';
+import { friendCodeOf } from '@/features/leaderboard/api';
 import { syncToday, type DailySyncResult } from '@/features/movement/dailySync';
 import { computeDayGoal, computeDayScore } from '@/features/movement/dayScore';
 import { useTodaySteps } from '@/features/movement/steps';
-import { AppText, Card, Screen, spacing, useTheme } from '@/shared/ui';
+import { ShareCard } from '@/features/share/ShareCard';
+import { useShareCard } from '@/features/share/useShareCard';
+import { AppText, Button, Card, Screen, spacing, useTheme } from '@/shared/ui';
 
 /**
  * Today — the day's single score, streak and goal progress (TZ §6).
@@ -16,8 +19,9 @@ import { AppText, Card, Screen, spacing, useTheme } from '@/shared/ui';
 export default function TodayScreen() {
   const { t } = useTranslation();
   const { colors } = useTheme();
-  const { targets, refreshProfile } = useAuth();
+  const { session, targets, refreshProfile } = useAuth();
   const stepsState = useTodaySteps();
+  const { cardRef, share, sharing } = useShareCard();
 
   const [day, setDay] = useState<DailySyncResult | null>(null);
 
@@ -188,6 +192,21 @@ export default function TodayScreen() {
           </AppText>
         </Card>
       ) : null}
+
+      <Button label={t('share.button')} variant="secondary" onPress={() => void share()} loading={sharing} />
+
+      {/* Offscreen poster the share button captures at 1080×1920. */}
+      <View style={styles.shareCardHost} pointerEvents="none">
+        <ShareCard
+          ref={cardRef}
+          data={{
+            streak,
+            score: score.total,
+            cityRank: null,
+            friendCode: session ? friendCodeOf(session.user.id) : '—',
+          }}
+        />
+      </View>
     </Screen>
   );
 }
@@ -236,5 +255,10 @@ const styles = StyleSheet.create({
   },
   centered: {
     textAlign: 'center',
+  },
+  shareCardHost: {
+    position: 'absolute',
+    left: -10000,
+    top: 0,
   },
 });

@@ -108,6 +108,15 @@
     "steps": "Қадамдар",
     "run": "Жүгіру"
   },
+  "share": {
+    "button": "Стористе бөлісу",
+    "daysStreak_one": "{{count}} күн қатарынан",
+    "daysStreak_other": "{{count}} күн қатарынан",
+    "scoreLabel": "күн есебі",
+    "rankLabel": "қалада",
+    "catchUp": "Streek Fit-те мені қуып жет",
+    "codeHint": "кодты «Рейтинг» бетінде енгіз"
+  },
   "lb": {
     "title": "Рейтинг",
     "city": "Қала",

@@ -108,6 +108,15 @@
     "steps": "Steps",
     "run": "Run"
   },
+  "share": {
+    "button": "Share to stories",
+    "daysStreak_one": "{{count}} day in a row",
+    "daysStreak_other": "{{count}} days in a row",
+    "scoreLabel": "day score",
+    "rankLabel": "in the city",
+    "catchUp": "Catch me in Streek Fit",
+    "codeHint": "enter the code in the Ranking tab"
+  },
   "lb": {
     "title": "Leaderboard",
     "city": "City",
