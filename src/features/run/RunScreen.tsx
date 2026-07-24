@@ -167,12 +167,15 @@ export function RunScreen() {
       </View>
 
       <View style={[styles.controls, { paddingBottom: insets.bottom + spacing.lg }]}>
-        {active ? (
-          <Button label={t('run.finish')} onPress={finish} />
-        ) : (
-          <Button label={t('run.start')} onPress={begin} />
-        )}
-        <Button label={t('common.back')} variant="ghost" onPress={() => router.back()} />
+        {/* Translucent panel — ghost buttons vanish on light map tiles. */}
+        <View style={[styles.controlsPanel, { backgroundColor: colors.overlay }]}>
+          {active ? (
+            <Button label={t('run.finish')} onPress={finish} />
+          ) : (
+            <Button label={t('run.start')} onPress={begin} />
+          )}
+          <Button label={t('common.back')} variant="ghost" onPress={() => router.back()} />
+        </View>
       </View>
     </View>
   );
@@ -217,7 +220,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: spacing.lg,
-    gap: spacing.sm,
+  },
+  controlsPanel: {
+    borderRadius: 20,
+    padding: spacing.sm,
+    gap: spacing.xs,
   },
   centered: {
     textAlign: 'center',

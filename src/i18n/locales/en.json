@@ -95,6 +95,7 @@
     "stepsAuto": "Counted automatically, feeds your daily score",
     "motionDenied": "Allow Motion access in Settings to count steps",
     "motionUnavailable": "Steps aren't available on this device",
+    "streakDanger": "Your streak is waiting — close the day before midnight",
     "dayClosed": "Day closed — streak is growing!",
     "lightDay": "Light day — closed with steps",
     "setsToday": "Today's sets",

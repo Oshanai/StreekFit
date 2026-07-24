@@ -1,13 +1,22 @@
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import Animated, {
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { useAuth } from '@/features/auth/AuthProvider';
 import { friendCodeOf } from '@/features/leaderboard/api';
 import { syncToday, type DailySyncResult } from '@/features/movement/dailySync';
 import { computeDayGoal, computeDayScore } from '@/features/movement/dayScore';
 import { useTodaySteps } from '@/features/movement/steps';
+import { StreakFlame } from '@/features/movement/StreakFlame';
 import { ShareCard } from '@/features/share/ShareCard';
 import { useShareCard } from '@/features/share/useShareCard';
 import { AppText, Button, Card, Screen, spacing, useTheme } from '@/shared/ui';
@@ -24,12 +33,17 @@ export default function TodayScreen() {
   const { cardRef, share, sharing } = useShareCard();
 
   const [day, setDay] = useState<DailySyncResult | null>(null);
+  const [streakAtRisk, setStreakAtRisk] = useState(false);
 
   const runSync = useCallback(() => {
     if (!targets) return;
     void syncToday(targets, stepsState.steps).then((result) => {
       if (result == null) return;
       setDay(result);
+      // Evening + chain alive + today still open → gentle nudge, no pressure.
+      setStreakAtRisk(
+        result.status === 'none' && result.streak > 0 && new Date().getHours() >= 17,
+      );
       // Targets changed in the DB — pull them into the app state.
       if (result.progression.type !== 'none') void refreshProfile();
     });
@@ -54,28 +68,54 @@ export default function TodayScreen() {
   const stepsTarget = targets?.steps_target ?? 7000;
   const streak = day?.streak ?? 0;
 
+  // The day score pops when it grows — instant reward for movement.
+  const scoreScale = useSharedValue(1);
+  useEffect(() => {
+    if (score.total > 0) {
+      scoreScale.value = withSequence(
+        withTiming(1.12, { duration: 140 }),
+        withSpring(1, { damping: 12 }),
+      );
+    }
+  }, [score.total, scoreScale]);
+  const scoreStyle = useAnimatedStyle(() => ({ transform: [{ scale: scoreScale.value }] }));
+
   return (
     <Screen insideTabs>
       <AppText variant="h1" style={styles.title}>
         {t('common.appName')}
       </AppText>
 
+      <Animated.View entering={FadeInDown.duration(360).springify().damping(16)}>
       <Card style={styles.scoreCard}>
         <AppText variant="caption" color="secondary">
           {t('home.todayScore')}
         </AppText>
-        <AppText variant="display" tabular>
-          {score.total}
-        </AppText>
+        <Animated.View style={[styles.scoreNumberWrap, scoreStyle]}>
+          <AppText variant="display" tabular>
+            {score.total}
+          </AppText>
+        </Animated.View>
 
         <View style={styles.row}>
-          <AppText variant="caption" color="secondary">
-            {t('home.streak')}
-          </AppText>
+          <View style={styles.streakLeft}>
+            <StreakFlame streak={streak} />
+            <AppText variant="caption" color="secondary">
+              {t('home.streak')}
+            </AppText>
+          </View>
           <AppText variant="bodyBold" color="accent" tabular>
             {t('home.streakDays', { count: streak })}
           </AppText>
         </View>
+
+        {streakAtRisk ? (
+          <View style={[styles.statusChip, { backgroundColor: colors.primarySoft }]}>
+            <AppText variant="caption" color="accent">
+              {t('home.streakDanger')}
+            </AppText>
+          </View>
+        ) : null}
 
         {day?.status === 'full' ? (
           <View style={[styles.statusChip, { backgroundColor: colors.primarySoft }]}>
@@ -144,6 +184,7 @@ export default function TodayScreen() {
           </AppText>
         </View>
       </Card>
+      </Animated.View>
 
       {day != null && day.newAchievements.length > 0 ? (
         <Card style={styles.banner}>
@@ -174,6 +215,7 @@ export default function TodayScreen() {
         </Card>
       ) : null}
 
+      <Animated.View entering={FadeInDown.delay(90).duration(360).springify().damping(16)}>
       <Card style={styles.stepsCard}>
         <View style={styles.row}>
           <AppText variant="bodyBold">{t('movement.steps')}</AppText>
@@ -194,6 +236,7 @@ export default function TodayScreen() {
           </AppText>
         ) : null}
       </Card>
+      </Animated.View>
 
       {score.total === 0 ? (
         <Card style={styles.emptyCard}>
@@ -239,6 +282,14 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
+  },
+  scoreNumberWrap: {
+    alignSelf: 'flex-start',
+  },
+  streakLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   progressTrack: {
     height: 8,
