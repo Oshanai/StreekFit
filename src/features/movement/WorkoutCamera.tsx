@@ -687,7 +687,7 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
       ) : null}
 
       {/* Camera flip — top right, under the safe area. */}
-      <View style={[styles.flipWrap, { top: insets.top + spacing.md }]}>
+      <View style={[styles.flipWrap, { top: insets.top + spacing.xxxl + spacing.md }]}>
         <ScalePressable
           onPress={() => setPosition((p) => (p === 'front' ? 'back' : 'front'))}
           accessibilityLabel={t('workout.flipCamera')}
@@ -699,7 +699,10 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
       </View>
 
       {/* HUD */}
-      <View style={[styles.hud, { paddingTop: insets.top + spacing.md }]} pointerEvents="box-none">
+      <View
+        style={[styles.hud, { paddingTop: insets.top + spacing.xxxl + spacing.md }]}
+        pointerEvents="box-none"
+      >
         <View style={[styles.counterCard, { backgroundColor: colors.overlay }]}>
           <AppText variant="caption" color="secondary">
             {t(`movement.${exercise}`)} · {t('workout.setLabel', { count: hud.sets + 1 })}
@@ -733,7 +736,7 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
 
       {/* Controls */}
       <View
-        style={[styles.controls, { paddingBottom: insets.bottom + spacing.lg }]}
+        style={[styles.controls, { paddingBottom: insets.bottom + spacing.xxxl + spacing.lg }]}
         pointerEvents="box-none"
       >
         {/* Translucent panel — buttons must read over any camera scene. */}

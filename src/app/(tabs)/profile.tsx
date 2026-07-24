@@ -10,7 +10,10 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { useCurrentStreak } from '@/features/movement/useStreak';
 import { useLanguageTransition } from '@/i18n/LanguageTransition';
 import { SUPPORTED_LANGUAGES, type AppLanguage } from '@/i18n';
-import { AppText, Avatar, Button, Card, Chip, Screen, spacing } from '@/shared/ui';
+import { AppText, Avatar, Button, Card, Chip, Screen, spacing, useTheme } from '@/shared/ui';
+import type { ThemeMode } from '@/shared/ui/ThemeProvider';
+
+const THEME_MODES: ThemeMode[] = ['system', 'dark', 'light', 'violet'];
 
 const LANGUAGE_LABEL_KEY: Record<AppLanguage, string> = {
   kk: 'settings.languageKk',
@@ -22,6 +25,7 @@ export default function ProfileScreen() {
   const { t, i18n } = useTranslation();
   const { changeLanguage } = useLanguageTransition();
   const { profile, signOut } = useAuth();
+  const { mode, setMode } = useTheme();
   const streak = useCurrentStreak();
 
   const featured = profile?.featured_achievements ?? [];
@@ -91,6 +95,22 @@ export default function ProfileScreen() {
               {t('profile.featuredEmpty')}
             </AppText>
           )}
+        </Card>
+
+        <Card>
+          <AppText variant="h3" style={styles.sectionTitle}>
+            {t('settings.theme')}
+          </AppText>
+          <View style={styles.options}>
+            {THEME_MODES.map((m) => (
+              <Chip
+                key={m}
+                label={t(`settings.theme_${m}`)}
+                selected={mode === m}
+                onPress={() => setMode(m)}
+              />
+            ))}
+          </View>
         </Card>
 
         <Card>

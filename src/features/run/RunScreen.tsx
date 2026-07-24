@@ -26,6 +26,7 @@ import {
   formatDuration,
   formatPace,
   runStats,
+  simplifyTrack,
   trackToGeoJson,
   type GeoPoint,
 } from './geo';
@@ -84,6 +85,7 @@ export function RunScreen() {
           type: 'run',
           minutes: Math.round((stats.durationMs / 60_000) * 100) / 100,
           distanceM: Math.round(distanceM),
+          track: simplifyTrack(track),
           setsDone: 1,
           verified: true,
           performedAt: new Date().toISOString(),

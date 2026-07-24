@@ -86,7 +86,7 @@ export default function MoveScreen() {
       </Animated.View>
 
       <Animated.View entering={FadeInDown.delay(210).duration(340).springify().damping(16)}>
-        <ScalePressable onPress={() => router.push('/run')}>
+        <ScalePressable onPress={() => router.push('/run-history')}>
           <Card style={styles.exerciseCard}>
             <View style={styles.cardRow}>
               <AppText variant="h2">{t('movement.run')}</AppText>

@@ -27,6 +27,8 @@ export const palette = {
     warning: '#FBBF24',
     streakFlame: '#FB923C',
     overlay: 'rgba(0,0,0,0.55)',
+    /** Screen backdrop gradient (top → bottom); equal colors = flat, not drawn. */
+    bgGradient: ['#0D0F14', '#0D0F14'] as [string, string],
   },
   light: {
     bg: '#F8FAFC',
@@ -51,6 +53,31 @@ export const palette = {
     warning: '#D97706',
     streakFlame: '#F97316',
     overlay: 'rgba(15,23,42,0.45)',
+    /** Screen backdrop gradient (top → bottom); equal colors = flat, not drawn. */
+    bgGradient: ['#F8FAFC', '#F8FAFC'] as [string, string],
+  },
+  /** «Аметист» — глубокая фиолетовая ночь, огонь остаётся оранжевым. */
+  violet: {
+    bg: '#100D1E',
+    surface: '#1A1530',
+    surfaceRaised: '#241D42',
+    border: '#352B58',
+    textPrimary: '#F5F3FF',
+    textSecondary: '#A99EC9',
+    textDisabled: '#645B85',
+    primary: '#F97316',
+    onPrimary: '#100D1E',
+    primarySoft: 'rgba(249,115,22,0.16)',
+    info: '#2DD4BF',
+    infoSoft: 'rgba(45,212,191,0.14)',
+    primaryGradient: ['#FB923C', '#EA580C'] as [string, string],
+    onOverlay: '#FFFFFF',
+    success: '#34D399',
+    error: '#F87171',
+    warning: '#FBBF24',
+    streakFlame: '#FB923C',
+    overlay: 'rgba(10,7,20,0.6)',
+    bgGradient: ['#1E1638', '#0B0916'] as [string, string],
   },
 } as const;
 

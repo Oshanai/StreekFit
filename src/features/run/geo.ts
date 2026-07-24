@@ -78,6 +78,40 @@ export function trackToGeoJson(track: GeoPoint[]): GeoJSON.Feature<GeoJSON.LineS
   };
 }
 
+/** Even-stride downsample to ≤ maxPoints [lon, lat] pairs for storage. */
+export function simplifyTrack(track: GeoPoint[], maxPoints = 200): [number, number][] {
+  if (track.length === 0) return [];
+  const stride = Math.max(1, Math.ceil(track.length / maxPoints));
+  const out: [number, number][] = [];
+  for (let i = 0; i < track.length; i += stride) {
+    out.push([track[i].longitude, track[i].latitude]);
+  }
+  const last = track[track.length - 1];
+  const tail = out[out.length - 1];
+  if (tail[0] !== last.longitude || tail[1] !== last.latitude) {
+    out.push([last.longitude, last.latitude]);
+  }
+  return out;
+}
+
+/** [west, south, east, north] of a stored polyline; null when too short. */
+export function trackBounds(
+  points: [number, number][],
+): [number, number, number, number] | null {
+  if (points.length < 2) return null;
+  let west = Infinity;
+  let south = Infinity;
+  let east = -Infinity;
+  let north = -Infinity;
+  for (const [lon, lat] of points) {
+    if (lon < west) west = lon;
+    if (lat < south) south = lat;
+    if (lon > east) east = lon;
+    if (lat > north) north = lat;
+  }
+  return [west, south, east, north];
+}
+
 export function formatDuration(ms: number): string {
   const totalS = Math.floor(ms / 1000);
   const h = Math.floor(totalS / 3600);

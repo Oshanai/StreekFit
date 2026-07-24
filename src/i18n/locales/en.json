@@ -35,6 +35,11 @@
   },
   "settings": {
     "title": "Settings",
+    "theme": "Theme",
+    "theme_system": "System",
+    "theme_dark": "Dark",
+    "theme_light": "Light",
+    "theme_violet": "Amethyst",
     "language": "Language",
     "languageKk": "Қазақша",
     "languageRu": "Русский",
@@ -128,6 +133,12 @@
     "km": "km",
     "pace": "pace",
     "foregroundHint": "Allow \"Always\" location in Settings so the route records with the screen off"
+  },
+  "runHistory": {
+    "title": "Runs",
+    "start": "Start a run",
+    "empty": "No runs yet — perfect time for the first one",
+    "viewMap": "Route map"
   },
   "share": {
     "button": "Share to stories",

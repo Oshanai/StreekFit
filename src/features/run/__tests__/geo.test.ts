@@ -5,6 +5,8 @@ import {
   formatPace,
   haversineM,
   runStats,
+  simplifyTrack,
+  trackBounds,
   trackToGeoJson,
   type GeoPoint,
 } from '../geo';
@@ -66,6 +68,31 @@ describe('run geometry (TZ §5)', () => {
       [76.8, 43.2],
       [76.9, 43.3],
     ]);
+  });
+
+  it('simplifies a long track to ≤ maxPoints keeping the endpoint', () => {
+    const track: GeoPoint[] = Array.from({ length: 1000 }, (_, i) =>
+      pt(43.2 + i * 0.0001, 76.8 + i * 0.0001, 5, i * 1000),
+    );
+    const simple = simplifyTrack(track, 200);
+    expect(simple.length).toBeLessThanOrEqual(201);
+    expect(simple[0]).toEqual([76.8, 43.2]);
+    const last = simple[simple.length - 1];
+    expect(last[1]).toBeCloseTo(43.2 + 999 * 0.0001, 6);
+    // short tracks pass through untouched
+    expect(simplifyTrack(track.slice(0, 3), 200)).toHaveLength(3);
+    expect(simplifyTrack([], 200)).toEqual([]);
+  });
+
+  it('computes [west, south, east, north] bounds of a stored polyline', () => {
+    expect(
+      trackBounds([
+        [76.8, 43.2],
+        [76.9, 43.25],
+        [76.85, 43.3],
+      ]),
+    ).toEqual([76.8, 43.2, 76.9, 43.3]);
+    expect(trackBounds([[76.8, 43.2]])).toBeNull();
   });
 
   it('formats durations and pace for the HUD', () => {
