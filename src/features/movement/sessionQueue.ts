@@ -27,6 +27,8 @@ export type SessionInput = {
   validReps?: number;
   minutes?: number;
   distanceM?: number;
+  /** Biggest single set of the session («за раз» achievements). */
+  bestSet?: number;
   setsDone: number;
   /** Camera-verified sessions set this true. */
   verified: boolean;
@@ -131,6 +133,7 @@ export async function flushSessionQueue(): Promise<number> {
           valid_reps: row.validReps ?? null,
           minutes: row.minutes ?? null,
           distance_m: row.distanceM ?? null,
+          best_set: row.bestSet ?? null,
           sets_done: row.setsDone,
           verified: row.verified,
           performed_at: row.performedAt,

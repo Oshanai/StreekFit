@@ -34,6 +34,20 @@ function BoltIcon({ color, size = 24 }: { color: ColorValue; size?: number }) {
   );
 }
 
+function MedalIcon({ color, size = 24 }: { color: ColorValue; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 15a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-7.5.9 1.8 2 .3-1.45 1.4.35 2-1.8-.95-1.8.95.35-2L9.1 9.6l2-.3.9-1.8ZM9 14.5 7.5 21l4.5-2.5L16.5 21 15 14.5"
+        stroke={color}
+        strokeWidth={1.6}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 function TrophyIcon({ color, size = 24 }: { color: ColorValue; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -94,6 +108,13 @@ export default function TabsLayout() {
         options={{
           title: t('tabs.move'),
           tabBarIcon: ({ color }) => <BoltIcon color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="awards"
+        options={{
+          title: t('tabs.awards'),
+          tabBarIcon: ({ color }) => <MedalIcon color={color} />,
         }}
       />
       <Tabs.Screen

@@ -139,13 +139,17 @@ export function restRemainingMs(state: SetTrackerState, now: number): number {
 export function sessionSummary(state: SetTrackerState): {
   validReps: number;
   setsDone: number;
+  /** Biggest single set — feeds the «за раз» achievements (TZ §8). */
+  bestSet: number;
 } {
   'worklet';
   let total = 0;
+  let best = 0;
   for (let i = 0; i < state.completedSets.length; i += 1) {
     total += state.completedSets[i];
+    if (state.completedSets[i] > best) best = state.completedSets[i];
   }
-  return { validReps: total, setsDone: state.completedSets.length };
+  return { validReps: total, setsDone: state.completedSets.length, bestSet: best };
 }
 
 /** TZ §3.2 floor: a set needs at least 5 valid reps to register. */

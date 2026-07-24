@@ -21,6 +21,8 @@ export type DailySyncResult = {
   squatSets: number;
   pushupReps: number;
   squatReps: number;
+  /** Achievement ids unlocked by this sync (server-validated). */
+  newAchievements: string[];
 };
 
 export type DailySyncTargets = {
@@ -79,6 +81,7 @@ export async function syncToday(
   const records = [...history, { date: today, status }];
   const streak = computeStreak(records, today);
 
+  let newAchievements: string[] = [];
   if (
     lastWrite.date !== today ||
     lastWrite.score !== score ||
@@ -91,8 +94,16 @@ export async function syncToday(
       score,
       status,
       streak_count: streak,
+      steps: Math.max(0, Math.round(steps)),
     });
-    if (!error) lastWrite = { date: today, score, status, streak };
+    if (!error) {
+      lastWrite = { date: today, score, status, streak };
+      // Metrics moved — let the server hand out anything newly earned.
+      const { data: unlocked } = await supabase.rpc('claim_achievements');
+      newAchievements = ((unlocked ?? []) as { claim_achievements?: string }[] | string[]).map(
+        (row) => (typeof row === 'string' ? row : String(Object.values(row)[0])),
+      );
+    }
   }
 
   // Progression fires only when today is FULL, once per calendar day
@@ -139,5 +150,6 @@ export async function syncToday(
     squatSets: activity.squatSets,
     pushupReps: activity.pushupReps,
     squatReps: activity.squatReps,
+    newAchievements,
   };
 }

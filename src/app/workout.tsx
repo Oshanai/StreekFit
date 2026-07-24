@@ -45,6 +45,7 @@ export default function WorkoutRoute() {
             type: exercise,
             validReps: summary.validReps,
             setsDone: summary.setsDone,
+            bestSet: summary.bestSet,
             verified: true,
             performedAt: new Date().toISOString(),
           });

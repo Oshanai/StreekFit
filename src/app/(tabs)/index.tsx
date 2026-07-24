@@ -131,6 +131,14 @@ export default function TodayScreen() {
         </View>
       </Card>
 
+      {day != null && day.newAchievements.length > 0 ? (
+        <Card style={styles.banner}>
+          <AppText variant="bodyBold" color="accent">
+            {t('ach.unlockedBanner', { count: day.newAchievements.length })}
+          </AppText>
+        </Card>
+      ) : null}
+
       {day?.progression.type === 'increase' ? (
         <Card style={styles.banner}>
           <AppText variant="bodyBold" color="accent">

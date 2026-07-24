@@ -13,8 +13,26 @@
   "tabs": {
     "today": "Сегодня",
     "move": "Движение",
+    "awards": "Награды",
     "leaderboard": "Рейтинг",
     "profile": "Профиль"
+  },
+  "ach": {
+    "title": "Награды",
+    "progress": "Открыто {{count}} из {{total}}",
+    "featuredHint": "тапни по бейджу — покажешь его в профиле",
+    "unlockedBanner_one": "Новое достижение! Загляни в «Награды»",
+    "unlockedBanner_few": "{{count}} новых достижения! Загляни в «Награды»",
+    "unlockedBanner_many": "{{count}} новых достижений! Загляни в «Награды»",
+    "tier": { "1": "Бронза", "2": "Серебро", "3": "Золото", "4": "Платина", "5": "Легенда" },
+    "badge": {
+      "volume_pushups": "Объём: отжимания",
+      "volume_squats": "Объём: приседания",
+      "single_pushups": "За раз: отжимания",
+      "single_squats": "За раз: приседания",
+      "streak_days": "Стрик",
+      "volume_steps": "Объём: шаги"
+    }
   },
   "settings": {
     "title": "Настройки",

@@ -1,7 +1,11 @@
-import React from 'react';
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { fetchCatalog } from '@/features/achievements/api';
+import { Badge } from '@/features/achievements/Badge';
+import { type CatalogRow } from '@/features/achievements/catalog';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useCurrentStreak } from '@/features/movement/useStreak';
 import { useLanguageTransition } from '@/i18n/LanguageTransition';
@@ -19,6 +23,25 @@ export default function ProfileScreen() {
   const { changeLanguage } = useLanguageTransition();
   const { profile, signOut } = useAuth();
   const streak = useCurrentStreak();
+
+  const featured = profile?.featured_achievements ?? [];
+  const [catalog, setCatalog] = useState<CatalogRow[]>([]);
+  useFocusEffect(
+    useCallback(() => {
+      if (featured.length === 0) return;
+      let alive = true;
+      void fetchCatalog().then((rows) => {
+        if (alive) setCatalog(rows);
+      });
+      return () => {
+        alive = false;
+      };
+       
+    }, [featured.length]),
+  );
+  const featuredRows = featured
+    .map((id) => catalog.find((r) => r.id === id))
+    .filter((r): r is CatalogRow => r != null);
 
   const locationLine = [profile?.city, profile?.country].filter(Boolean).join(', ');
 
@@ -57,9 +80,17 @@ export default function ProfileScreen() {
         </View>
 
         <Card style={styles.featured}>
-          <AppText variant="caption" color="secondary" style={styles.centered}>
-            {t('profile.featuredEmpty')}
-          </AppText>
+          {featuredRows.length > 0 ? (
+            <View style={styles.featuredRow}>
+              {featuredRows.map((row) => (
+                <Badge key={row.id} code={row.code} tier={row.tier} size={56} />
+              ))}
+            </View>
+          ) : (
+            <AppText variant="caption" color="secondary" style={styles.centered}>
+              {t('profile.featuredEmpty')}
+            </AppText>
+          )}
         </Card>
 
         <Card>
@@ -110,6 +141,10 @@ const styles = StyleSheet.create({
   featured: {
     alignItems: 'center',
     paddingVertical: spacing.xl,
+  },
+  featuredRow: {
+    flexDirection: 'row',
+    gap: spacing.lg,
   },
   centered: {
     textAlign: 'center',

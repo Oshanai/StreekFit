@@ -13,8 +13,25 @@
   "tabs": {
     "today": "Today",
     "move": "Move",
+    "awards": "Awards",
     "leaderboard": "Ranking",
     "profile": "Profile"
+  },
+  "ach": {
+    "title": "Awards",
+    "progress": "{{count}} of {{total}} unlocked",
+    "featuredHint": "tap a badge to feature it on your profile",
+    "unlockedBanner_one": "New achievement! Check Awards",
+    "unlockedBanner_other": "{{count}} new achievements! Check Awards",
+    "tier": { "1": "Bronze", "2": "Silver", "3": "Gold", "4": "Platinum", "5": "Legend" },
+    "badge": {
+      "volume_pushups": "Volume: push-ups",
+      "volume_squats": "Volume: squats",
+      "single_pushups": "Single set: push-ups",
+      "single_squats": "Single set: squats",
+      "streak_days": "Streak",
+      "volume_steps": "Volume: steps"
+    }
   },
   "settings": {
     "title": "Settings",

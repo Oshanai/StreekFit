@@ -43,6 +43,18 @@ export const palette = {
 export type ThemeName = keyof typeof palette;
 export type ThemeColors = (typeof palette)[ThemeName];
 
+/**
+ * Achievement tier metals (TZ §8: бронза → серебро → золото → платина →
+ * легенда). Metallic accents that read on both themes; indexed by tier 1..5.
+ */
+export const tierColors: Record<1 | 2 | 3 | 4 | 5, string> = {
+  1: '#C2793A',
+  2: '#AEB8C4',
+  3: '#E7B93C',
+  4: '#7FD1DC',
+  5: '#B08CFF',
+} as const;
+
 export const spacing = {
   xs: 4,
   sm: 8,

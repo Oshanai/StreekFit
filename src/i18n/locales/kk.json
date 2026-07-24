@@ -13,8 +13,25 @@
   "tabs": {
     "today": "Бүгін",
     "move": "Қозғалыс",
+    "awards": "Марапаттар",
     "leaderboard": "Рейтинг",
     "profile": "Профиль"
+  },
+  "ach": {
+    "title": "Марапаттар",
+    "progress": "{{total}} ішінен {{count}} ашылды",
+    "featuredHint": "бейджді тап — профильде көрсетесің",
+    "unlockedBanner_one": "Жаңа жетістік! «Марапаттарға» қара",
+    "unlockedBanner_other": "{{count}} жаңа жетістік! «Марапаттарға» қара",
+    "tier": { "1": "Қола", "2": "Күміс", "3": "Алтын", "4": "Платина", "5": "Аңыз" },
+    "badge": {
+      "volume_pushups": "Көлем: итерілу",
+      "volume_squats": "Көлем: отырып-тұру",
+      "single_pushups": "Бір реттік: итерілу",
+      "single_squats": "Бір реттік: отырып-тұру",
+      "streak_days": "Стрик",
+      "volume_steps": "Көлем: қадамдар"
+    }
   },
   "settings": {
     "title": "Баптаулар",

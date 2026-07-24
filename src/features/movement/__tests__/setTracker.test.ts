@@ -46,7 +46,7 @@ describe('set tracker (TZ §3.2 — set closure, floor, rest, day-spread)', () =
     startSet(s);
     const { endedAt } = doReps(s, 5, 1000); // auto-close → resting
     expect(recordRep(s, endedAt + 500)).toBe('none'); // bounce during rest
-    expect(sessionSummary(s)).toEqual({ validReps: 5, setsDone: 1 });
+    expect(sessionSummary(s)).toEqual({ validReps: 5, setsDone: 1, bestSet: 5 });
   });
 
   it('registers a manually-ended set at the 5-rep floor', () => {
@@ -114,7 +114,7 @@ describe('set tracker (TZ §3.2 — set closure, floor, rest, day-spread)', () =
     endSet(s, 20 * HOUR + 15 * 60_000);
 
     expect(s.completedSets).toEqual([10, 10, 7]);
-    expect(sessionSummary(s)).toEqual({ validReps: 27, setsDone: 3 });
+    expect(sessionSummary(s)).toEqual({ validReps: 27, setsDone: 3, bestSet: 10 });
   });
 
   it('is idempotent on double start and double end', () => {

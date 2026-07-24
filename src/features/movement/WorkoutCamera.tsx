@@ -131,7 +131,7 @@ type FrameCtx = {
 
 type FrameGlobal = { __streekWorkout?: FrameCtx };
 
-export type WorkoutSummary = { validReps: number; setsDone: number };
+export type WorkoutSummary = { validReps: number; setsDone: number; bestSet: number };
 
 type Props = {
   exercise: WorkoutExercise;
@@ -194,6 +194,7 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
   const currentReps = useSharedValue(0);
   const setsDone = useSharedValue(0);
   const totalReps = useSharedValue(0);
+  const bestSet = useSharedValue(0);
   const setPhase = useSharedValue<'idle' | 'active' | 'resting'>('idle');
   const restStartedAt = useSharedValue(0);
   const restDurationMs = useSharedValue(0);
@@ -283,6 +284,7 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
           const sum = sessionSummary(ctx.session.sets);
           setsDone.value = sum.setsDone;
           totalReps.value = sum.validReps;
+          bestSet.value = sum.bestSet;
           currentReps.value = ctx.session.sets.currentReps;
           setPhase.value = ctx.session.sets.phase;
           restStartedAt.value = ctx.session.sets.restStartedAt;
@@ -513,6 +515,7 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
           const sum = sessionSummary(ctx.session.sets);
           setsDone.value = sum.setsDone;
           totalReps.value = sum.validReps;
+          bestSet.value = sum.bestSet;
           currentReps.value = ctx.session.sets.currentReps;
           setPhase.value = ctx.session.sets.phase;
           restStartedAt.value = ctx.session.sets.restStartedAt;
@@ -632,7 +635,7 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
     // Give the frame worklet a beat to process the stop command, then read
     // the aggregates. If the camera stalled, we still finish with what we have.
     setTimeout(() => {
-      onFinish({ validReps: totalReps.value, setsDone: setsDone.value });
+      onFinish({ validReps: totalReps.value, setsDone: setsDone.value, bestSet: bestSet.value });
     }, 400);
   };
 
