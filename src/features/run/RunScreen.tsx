@@ -170,11 +170,11 @@ export function RunScreen() {
         {/* Translucent panel — ghost buttons vanish on light map tiles. */}
         <View style={[styles.controlsPanel, { backgroundColor: colors.overlay }]}>
           {active ? (
-            <Button label={t('run.finish')} onPress={finish} />
+            <Button variant="gradient" label={t('run.finish')} onPress={finish} />
           ) : (
-            <Button label={t('run.start')} onPress={begin} />
+            <Button variant="gradient" label={t('run.start')} onPress={begin} />
           )}
-          <Button label={t('common.back')} variant="ghost" onPress={() => router.back()} />
+          <Button label={t('common.back')} variant="translucent" onPress={() => router.back()} />
         </View>
       </View>
     </View>

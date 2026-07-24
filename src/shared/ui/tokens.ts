@@ -18,6 +18,10 @@ export const palette = {
     /** Cool companion to the orange: informational accents (steps, pace). */
     info: '#2DD4BF',
     infoSoft: 'rgba(45,212,191,0.14)',
+    /** Primary CTA gradient (light → deep) for immersive screens. */
+    primaryGradient: ['#FB923C', '#EA580C'] as [string, string],
+    /** Text/icons sitting on `overlay` translucent panels. */
+    onOverlay: '#FFFFFF',
     success: '#22C55E',
     error: '#EF4444',
     warning: '#FBBF24',
@@ -38,6 +42,10 @@ export const palette = {
     /** Cool companion to the orange: informational accents (steps, pace). */
     info: '#0D9488',
     infoSoft: 'rgba(13,148,136,0.12)',
+    /** Primary CTA gradient (light → deep) for immersive screens. */
+    primaryGradient: ['#F97316', '#DC5A0B'] as [string, string],
+    /** Text/icons sitting on `overlay` translucent panels. */
+    onOverlay: '#FFFFFF',
     success: '#16A34A',
     error: '#DC2626',
     warning: '#D97706',

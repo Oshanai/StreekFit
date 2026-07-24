@@ -57,7 +57,10 @@ Contrast: body text ≥ 4.5:1, secondary ≥ 3:1 in BOTH themes. Functional colo
 - Stagger lists 30–50ms/item
 
 ## Components (src/shared/ui)
-Button (primary/secondary/ghost, loading state, min height 48), Card, Input (visible label, error below field), Badge (achievement silhouette-in-circle + tier slot), Avatar (frame slot), Screen (safe area + bg), AppText (typed variants), states: Spinner / EmptyState / ErrorState (every screen type must have all three).
+Button (primary/gradient/secondary/ghost/translucent, loading state, min height 48), Card, Input (visible label, error below field), Badge (achievement silhouette-in-circle + tier slot), Avatar (frame slot), Screen (safe area + bg), AppText (typed variants), states: Spinner / EmptyState / ErrorState (every screen type must have all three).
+
+## Media-surface rule (камера, карта)
+Поверх живого видео/карты обычные кнопки не читаются: primary CTA — variant `gradient` (пара `primaryGradient`, светлый → глубокий по диагонали), все остальные — `translucent` (фон `overlay`, текст `onOverlay`), группа кнопок сидит на скруглённой панели `overlay`. Ghost на медиа-поверхностях запрещён. Градиент — только ОДНА кнопка на экране.
 
 ## Hard rules
 - Touch targets ≥ 44×44pt, spacing between ≥ 8pt

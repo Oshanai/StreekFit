@@ -1,12 +1,13 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View, type ViewStyle } from 'react-native';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { AppText } from './AppText';
 import { ScalePressable } from './Pressable';
 import { useTheme } from './ThemeProvider';
 import { MIN_TOUCH, radii, spacing } from './tokens';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost';
+type ButtonVariant = 'primary' | 'gradient' | 'secondary' | 'ghost' | 'translucent';
 
 type ButtonProps = {
   label: string;
@@ -32,15 +33,23 @@ export function Button({
 
   const containerStyle: ViewStyle = {
     primary: { backgroundColor: colors.primary },
+    gradient: { backgroundColor: colors.primary, overflow: 'hidden' as const },
     secondary: {
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
     },
     ghost: { backgroundColor: 'transparent' },
+    // Reads on ANY background (camera feed, map tiles) — §MASTER media rule.
+    translucent: { backgroundColor: colors.overlay },
   }[variant];
 
-  const textColor = variant === 'primary' ? colors.onPrimary : colors.textPrimary;
+  const textColor =
+    variant === 'primary' || variant === 'gradient'
+      ? colors.onPrimary
+      : variant === 'translucent'
+        ? colors.onOverlay
+        : colors.textPrimary;
 
   return (
     <ScalePressable
@@ -59,6 +68,17 @@ export function Button({
           style,
         ]}
       >
+        {variant === 'gradient' ? (
+          <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+            <Defs>
+              <LinearGradient id="btn-grad" x1="0" y1="0" x2="1" y2="1">
+                <Stop offset="0" stopColor={colors.primaryGradient[0]} />
+                <Stop offset="1" stopColor={colors.primaryGradient[1]} />
+              </LinearGradient>
+            </Defs>
+            <Rect width="100%" height="100%" fill="url(#btn-grad)" />
+          </Svg>
+        ) : null}
         {loading ? (
           <ActivityIndicator color={textColor} />
         ) : (

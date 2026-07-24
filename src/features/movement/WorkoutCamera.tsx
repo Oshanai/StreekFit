@@ -736,19 +736,23 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
         style={[styles.controls, { paddingBottom: insets.bottom + spacing.lg }]}
         pointerEvents="box-none"
       >
-        {hud.phase === 'active' ? (
-          <Button
-            variant="secondary"
-            label={t('workout.stopSet')}
-            onPress={() => sendCommand('stop')}
-          />
-        ) : (
-          <Button
-            label={hud.phase === 'resting' ? t('workout.nextSet') : t('workout.startSet')}
-            onPress={() => sendCommand('start')}
-          />
-        )}
-        <Button variant="ghost" label={t('workout.finish')} onPress={handleFinish} />
+        {/* Translucent panel — buttons must read over any camera scene. */}
+        <View style={[styles.controlsPanel, { backgroundColor: colors.overlay }]}>
+          {hud.phase === 'active' ? (
+            <Button
+              variant="translucent"
+              label={t('workout.stopSet')}
+              onPress={() => sendCommand('stop')}
+            />
+          ) : (
+            <Button
+              variant="gradient"
+              label={hud.phase === 'resting' ? t('workout.nextSet') : t('workout.startSet')}
+              onPress={() => sendCommand('start')}
+            />
+          )}
+          <Button variant="translucent" label={t('workout.finish')} onPress={handleFinish} />
+        </View>
       </View>
     </View>
   );
@@ -819,8 +823,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    gap: spacing.sm,
     paddingHorizontal: spacing.lg,
+  },
+  controlsPanel: {
+    borderRadius: 20,
+    padding: spacing.sm,
+    gap: spacing.xs,
   },
   demoWrap: {
     position: 'absolute',
