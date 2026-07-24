@@ -72,7 +72,13 @@
     "streakDays_few": "{{count}} дня",
     "streakDays_many": "{{count}} дней",
     "dailyGoal": "Цель на день",
-    "empty": "Движения пока нет — начнём с разминки"
+    "empty": "Движения пока нет — начнём с разминки",
+    "fromWorkouts": "Тренировки",
+    "fromSteps": "Шаги",
+    "stepsOf": "{{count}} из {{target}}",
+    "stepsAuto": "Считаются автоматически и идут в счёт дня",
+    "motionDenied": "Разреши доступ к движению в Настройках, чтобы считать шаги",
+    "motionUnavailable": "Шаги недоступны на этом устройстве"
   },
   "movement": {
     "pushups": "Отжимания",

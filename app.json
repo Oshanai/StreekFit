@@ -35,6 +35,12 @@
       "expo-router",
       "expo-localization",
       [
+        "expo-sensors",
+        {
+          "motionPermission": "Streek Fit reads your step count from the phone's motion sensor to add walking to your daily score. This data never leaves your device except as a daily total."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#0D0F14",

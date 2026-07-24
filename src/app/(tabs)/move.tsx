@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/features/auth/AuthProvider';
+import { useTodaySteps } from '@/features/movement/steps';
 import type { WorkoutExercise } from '@/features/movement/workoutSession';
 import { AppText, Card, ScalePressable, Screen, spacing, useTheme } from '@/shared/ui';
 
@@ -12,6 +13,7 @@ export default function MoveScreen() {
   const { t } = useTranslation();
   const { targets } = useAuth();
   const { colors } = useTheme();
+  const stepsState = useTodaySteps();
 
   const startWorkout = (type: WorkoutExercise) => {
     router.push({ pathname: '/workout', params: { type } });
@@ -55,9 +57,27 @@ export default function MoveScreen() {
         </Card>
       </ScalePressable>
 
+      <Card style={styles.exerciseCard}>
+        <View style={styles.cardRow}>
+          <AppText variant="h2">{t('movement.steps')}</AppText>
+          {stepsState.status === 'ready' ? (
+            <AppText variant="bodyBold" color="accent" tabular>
+              {t('home.stepsOf', { count: stepsState.steps, target: targets?.steps_target ?? 7000 })}
+            </AppText>
+          ) : null}
+        </View>
+        <AppText variant="caption" color="secondary">
+          {stepsState.status === 'denied'
+            ? t('home.motionDenied')
+            : stepsState.status === 'unavailable'
+              ? t('home.motionUnavailable')
+              : t('home.stepsAuto')}
+        </AppText>
+      </Card>
+
       <Card style={styles.soonCard}>
         <AppText variant="body" color="secondary">
-          {t('movement.steps')} · {t('movement.run')} — {t('workout.comingSoon')}
+          {t('movement.run')} — {t('workout.comingSoon')}
         </AppText>
       </Card>
     </Screen>

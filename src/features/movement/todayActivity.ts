@@ -1,0 +1,49 @@
+/**
+ * Today's strength volume: synced sessions from Supabase merged with the
+ * still-pending offline queue (rows leave the queue on sync, and ids are
+ * client-generated — so a set counted twice is impossible).
+ */
+
+import { supabase } from '@/lib/supabase/client';
+
+import { readQueue } from './sessionQueue';
+
+export type TodayReps = { pushupReps: number; squatReps: number };
+
+function startOfTodayIso(): string {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
+export async function fetchTodayReps(): Promise<TodayReps> {
+  const totals: TodayReps = { pushupReps: 0, squatReps: 0 };
+  const seenIds = new Set<string>();
+  const since = startOfTodayIso();
+
+  try {
+    const { data } = await supabase
+      .from('sessions')
+      .select('id, type, valid_reps')
+      .gte('performed_at', since);
+    for (const row of data ?? []) {
+      seenIds.add(row.id as string);
+      const reps = (row.valid_reps as number | null) ?? 0;
+      if (row.type === 'pushups') totals.pushupReps += reps;
+      if (row.type === 'squats') totals.squatReps += reps;
+    }
+  } catch {
+    // Offline — the queue below still carries today's local sessions.
+  }
+
+  const queued = await readQueue();
+  for (const row of queued) {
+    if (seenIds.has(row.id)) continue;
+    if (row.performedAt < since) continue;
+    const reps = row.validReps ?? 0;
+    if (row.type === 'pushups') totals.pushupReps += reps;
+    if (row.type === 'squats') totals.squatReps += reps;
+  }
+
+  return totals;
+}

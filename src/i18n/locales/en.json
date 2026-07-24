@@ -71,7 +71,13 @@
     "streakDays_one": "{{count}} day",
     "streakDays_other": "{{count}} days",
     "dailyGoal": "Daily goal",
-    "empty": "No movement yet — let's start with a warm-up"
+    "empty": "No movement yet — let's start with a warm-up",
+    "fromWorkouts": "Workouts",
+    "fromSteps": "Steps",
+    "stepsOf": "{{count}} of {{target}}",
+    "stepsAuto": "Counted automatically, feeds your daily score",
+    "motionDenied": "Allow Motion access in Settings to count steps",
+    "motionUnavailable": "Steps aren't available on this device"
   },
   "movement": {
     "pushups": "Push-ups",
