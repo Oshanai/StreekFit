@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '@/features/auth/AuthProvider';
+import { useCurrentStreak } from '@/features/movement/useStreak';
 import { useLanguageTransition } from '@/i18n/LanguageTransition';
 import { SUPPORTED_LANGUAGES, type AppLanguage } from '@/i18n';
 import { AppText, Avatar, Button, Card, Chip, Screen, spacing } from '@/shared/ui';
@@ -17,6 +18,7 @@ export default function ProfileScreen() {
   const { t, i18n } = useTranslation();
   const { changeLanguage } = useLanguageTransition();
   const { profile, signOut } = useAuth();
+  const streak = useCurrentStreak();
 
   const locationLine = [profile?.city, profile?.country].filter(Boolean).join(', ');
 
@@ -41,7 +43,7 @@ export default function ProfileScreen() {
               {t('profile.streak')}
             </AppText>
             <AppText variant="h1" color="accent" tabular>
-              0
+              {streak}
             </AppText>
           </Card>
           <Card style={styles.statCard}>

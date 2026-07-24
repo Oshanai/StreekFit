@@ -77,7 +77,13 @@
     "stepsOf": "{{count}} of {{target}}",
     "stepsAuto": "Counted automatically, feeds your daily score",
     "motionDenied": "Allow Motion access in Settings to count steps",
-    "motionUnavailable": "Steps aren't available on this device"
+    "motionUnavailable": "Steps aren't available on this device",
+    "dayClosed": "Day closed — streak is growing!",
+    "lightDay": "Light day — closed with steps",
+    "setsToday": "Today's sets",
+    "setsValue": "push-ups {{pushups}}/3 · squats {{squats}}/3",
+    "targetsGrew": "Target grew: {{pushups}} push-ups × {{squats}} squats",
+    "deloadApplied": "Deload: targets eased to {{pushups}} × {{squats}} — recovery is part of the plan"
   },
   "movement": {
     "pushups": "Push-ups",
