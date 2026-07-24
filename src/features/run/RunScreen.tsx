@@ -33,6 +33,8 @@ import { isRunActive, requestRunPermissions, runSnapshot, startRun, stopRun, typ
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 
+const EMPTY_TRACK: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
+
 export function RunScreen() {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -42,7 +44,9 @@ export function RunScreen() {
   const [permission, setPermission] = useState<RunPermission | 'asking'>('asking');
   const [active, setActive] = useState(false);
   const [hud, setHud] = useState({ distanceM: 0, durationMs: 0, pace: null as number | null });
-  const [geojson, setGeojson] = useState(trackToGeoJson([]));
+  // A LineString needs ≥2 points — feed an empty collection until then,
+  // otherwise MapLibre logs an invalid-geometry warning every poll.
+  const [geojson, setGeojson] = useState<GeoJSON.GeoJSON>(EMPTY_TRACK);
   const trackRef = useRef<GeoPoint[]>([]);
   const finishing = useRef(false);
 
@@ -60,7 +64,7 @@ export function RunScreen() {
       trackRef.current = snap.track;
       const stats = runStats(snap.track, snap.distanceM, Date.now());
       setHud({ distanceM: snap.distanceM, durationMs: stats.durationMs, pace: stats.paceMinPerKm });
-      setGeojson(trackToGeoJson(snap.track));
+      setGeojson(snap.track.length >= 2 ? trackToGeoJson(snap.track) : EMPTY_TRACK);
     }, 1000);
     return () => clearInterval(id);
   }, [active]);
