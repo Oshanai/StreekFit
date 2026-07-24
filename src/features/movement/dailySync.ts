@@ -24,6 +24,8 @@ export type DailySyncResult = {
   runMinutes: number;
   /** Achievement ids unlocked by this sync (server-validated). */
   newAchievements: string[];
+  /** Yesterday's score — today's shadow goal («Вчерашний ты»); null = no data. */
+  yesterdayScore: number | null;
 };
 
 export type DailySyncTargets = {
@@ -71,13 +73,20 @@ export async function syncToday(
   // Recent history for streak + progression (a month is plenty for both).
   const { data: historyRows } = await supabase
     .from('daily_scores')
-    .select('date, status')
+    .select('date, status, score')
     .eq('user_id', userId)
     .order('date', { ascending: false })
     .limit(31);
   const history: DayRecord[] = (historyRows ?? [])
     .filter((r) => r.date !== today)
     .map((r) => ({ date: r.date as string, status: r.status as DayStatus }));
+
+  // «Вчерашний ты» — yesterday's score becomes today's shadow goal.
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+  const yesterdayScore =
+    ((historyRows ?? []).find((r) => r.date === yesterdayKey)?.score as number | undefined) ?? null;
 
   const records = [...history, { date: today, status }];
   const streak = computeStreak(records, today);
@@ -153,5 +162,6 @@ export async function syncToday(
     squatReps: activity.squatReps,
     runMinutes: activity.runMinutes,
     newAchievements,
+    yesterdayScore,
   };
 }

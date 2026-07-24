@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Animated, {
   FadeInDown,
+  ZoomIn,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
@@ -115,6 +116,29 @@ export default function TodayScreen() {
               {t('home.streakDanger')}
             </AppText>
           </View>
+        ) : null}
+
+        {/* «Вчерашний ты» — beat your own shadow, the honest daily duel. */}
+        {day?.yesterdayScore != null && day.yesterdayScore > 0 ? (
+          score.total > day.yesterdayScore ? (
+            <Animated.View
+              entering={ZoomIn.springify().damping(11)}
+              style={[styles.statusChip, { backgroundColor: colors.primarySoft }]}
+            >
+              <AppText variant="caption" color="accent">
+                {t('home.yesterdayBeaten', { score: day.yesterdayScore })}
+              </AppText>
+            </Animated.View>
+          ) : (
+            <View style={styles.row}>
+              <AppText variant="caption" color="secondary">
+                {t('home.yesterdayGoal', { score: day.yesterdayScore })}
+              </AppText>
+              <AppText variant="caption" color="secondary" tabular>
+                {score.total} / {day.yesterdayScore}
+              </AppText>
+            </View>
+          )
         ) : null}
 
         {day?.status === 'full' ? (
