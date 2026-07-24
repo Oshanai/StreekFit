@@ -32,12 +32,15 @@ import { AppText, Button, LoadingState, ErrorState, ScalePressable, spacing, use
 import { DemoFigure } from './DemoFigure';
 import { createTensorScratch, packPixelsToTensor, type TensorScratch } from './frameTensor';
 import {
+  DISPLAY_DELTAS,
   MOVENET_INPUT_SIZE,
   computeNextCrop,
   createLandmarkSlots,
+  displayDeltaScore,
   landmarksToPixelsFromCrop,
   landmarksToPixelsFromSquare,
   movenetToLandmarks,
+  rotateLandmarks,
   smoothCrop,
   type CropRegion,
 } from './movenet';
@@ -73,6 +76,16 @@ const ROTATIONS = [0, 90, 180, 270] as const;
 const UPRIGHT_MID_MAX = 512;
 /** EMA weight of the newest frame — steadies both the overlay and the FSM. */
 const SMOOTH_ALPHA = 0.45;
+
+/**
+ * Model space vs display space: MoveNet prefers upright people, so for a
+ * horizontal athlete the winning MODEL rotation is 90° off the preview.
+ * The delta back to display space is calibrated from the pose's gravity
+ * signature (see displayDeltaScore) over a few confident frames.
+ */
+const DELTA_MIN_FRAMES = 5;
+const DELTA_WINDOW_FRAMES = 40;
+const DELTA_MARGIN = 1.15;
 /** Earliest round a lock may happen (each round = one frame per rotation). */
 const CALIBRATION_MIN_ROUNDS = 2;
 /** Without a confident winner, restart the scoring window (stale noise out). */
@@ -105,8 +118,14 @@ type FrameCtx = {
   float32: Float32Array | null;
   /** Tracking window around the athlete (upright pixels); null = searching. */
   crop: CropRegion | null;
-  /** EMA-smoothed landmarks the engine and overlay actually consume. */
+  /** EMA-smoothed landmarks in MODEL space. */
   smooth: Landmark[];
+  /** Landmarks rotated into DISPLAY space — what the engine and overlay eat. */
+  display: Landmark[];
+  deltaLocked: boolean;
+  deltaBest: number;
+  deltaScores: number[];
+  deltaFrames: number;
   trackLogged: boolean;
 };
 
@@ -230,6 +249,11 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
             float32: null,
             crop: null,
             smooth: createLandmarkSlots(),
+            display: createLandmarkSlots(),
+            deltaLocked: false,
+            deltaBest: 0,
+            deltaScores: [0, 0, 0],
+            deltaFrames: 0,
             trackLogged: false,
           };
           g.__streekWorkout = ctx;
@@ -245,6 +269,9 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
           ctx.rotRounds = 0;
           ctx.lowScoreStreak = 0;
           ctx.crop = null;
+          ctx.deltaLocked = false;
+          ctx.deltaScores = [0, 0, 0];
+          ctx.deltaFrames = 0;
         }
 
         // UI intents first, so start/stop feels instant even between analyses.
@@ -388,6 +415,10 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
             ctx.rotProbe = 0;
             ctx.rotRounds = 0;
             ctx.lowScoreStreak = 0;
+            ctx.crop = null;
+            ctx.deltaLocked = false;
+            ctx.deltaScores = [0, 0, 0];
+            ctx.deltaFrames = 0;
             return;
           }
         } else {
@@ -427,7 +458,55 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
           console.log(`[workout] tracking engaged (crop ${Math.round(ctx.crop.size)}px)`);
         }
 
-        const outcome = processFrame(ctx.session, sm, now);
+        // Calibrate the model→display delta from the pose's gravity signature
+        // (all three candidates scored on the SAME landmarks — no extra
+        // inference). Until locked the engine stays paused: feeding it
+        // rotated geometry would count garbage.
+        if (!ctx.deltaLocked) {
+          let judgeable = false;
+          for (let i = 0; i < DISPLAY_DELTAS.length; i += 1) {
+            const s = displayDeltaScore(sm, DISPLAY_DELTAS[i], uw, uh, exercise);
+            if (s > 0) judgeable = true;
+            ctx.deltaScores[i] += s;
+          }
+          if (judgeable) ctx.deltaFrames += 1;
+          if (ctx.deltaFrames >= DELTA_MIN_FRAMES) {
+            let best = 0;
+            for (let i = 1; i < DISPLAY_DELTAS.length; i += 1) {
+              if (ctx.deltaScores[i] > ctx.deltaScores[best]) best = i;
+            }
+            let runnerUp = 0;
+            for (let i = 0; i < DISPLAY_DELTAS.length; i += 1) {
+              if (i !== best && ctx.deltaScores[i] > runnerUp) runnerUp = ctx.deltaScores[i];
+            }
+            if (ctx.deltaScores[best] >= DELTA_MARGIN * runnerUp && ctx.deltaScores[best] > 0) {
+              ctx.deltaBest = best;
+              ctx.deltaLocked = true;
+              console.log(
+                `[workout] display delta locked at ${DISPLAY_DELTAS[best]}° (scores: ${ctx.deltaScores
+                  .map((s) => s.toFixed(1))
+                  .join(' / ')})`,
+              );
+            } else if (ctx.deltaFrames >= DELTA_WINDOW_FRAMES) {
+              ctx.deltaScores = [0, 0, 0];
+              ctx.deltaFrames = 0;
+            }
+          }
+          if (!ctx.deltaLocked) {
+            poseOk.value = false;
+            skeleton.value = [];
+            return;
+          }
+        }
+
+        // Engine + overlay live in DISPLAY space (gravity-true, what the
+        // preview shows). Model space stays inside the crop/model loop.
+        const delta = DISPLAY_DELTAS[ctx.deltaBest];
+        rotateLandmarks(sm, ctx.display, delta, uw, uh);
+        const dw = delta === 90 || delta === 270 ? uh : uw;
+        const dh = delta === 90 || delta === 270 ? uw : uh;
+
+        const outcome = processFrame(ctx.session, ctx.display, now);
         poseOk.value = outcome.poseUsable;
 
         if (outcome.repEvent !== 'none' || outcome.setEvent !== 'none') {
@@ -443,7 +522,7 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
         }
 
         // Skeleton for the better-visible side, in frame-normalized coords.
-        const slots = ctx.smooth;
+        const slots = ctx.display;
         const leftVis =
           slots[LM.leftShoulder].visibility +
           slots[LM.leftElbow].visibility +
@@ -469,13 +548,13 @@ export function WorkoutCamera({ exercise, targetReps, onFinish }: Props) {
               LM.rightKnee,
               LM.rightAnkle,
             ];
-        // Overlay space = upright frame dims (the preview shows upright too);
-        // slots are already upright pixels — just normalize.
-        const pts: number[] = [uw, uh, dataMirrored ? 1 : 0];
+        // Overlay space = DISPLAY dims (what the preview shows); slots are
+        // already display pixels — just normalize.
+        const pts: number[] = [dw, dh, dataMirrored ? 1 : 0];
         let visibleCount = 0;
         for (let i = 0; i < chain.length; i += 1) {
           const lm = slots[chain[i]];
-          pts.push(lm.x / uw, lm.y / uh, lm.visibility);
+          pts.push(lm.x / dw, lm.y / dh, lm.visibility);
           if (lm.visibility >= 0.35) visibleCount += 1;
         }
         skeleton.value = visibleCount >= 4 ? pts : [];

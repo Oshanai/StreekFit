@@ -4,10 +4,12 @@ import {
   MOVENET_KEYPOINTS,
   computeNextCrop,
   createLandmarkSlots,
+  displayDeltaScore,
   landmarksToPixelsFromCrop,
   landmarksToPixelsFromSquare,
   letterboxTransform,
   movenetToLandmarks,
+  rotateLandmarks,
   smoothCrop,
   squareToFrame,
 } from '../movenet';
@@ -246,6 +248,72 @@ describe('smart crop (MoveNet tracking window)', () => {
     expect(s.size).toBeCloseTo(430);
   });
 
+});
+
+describe('model space → display space', () => {
+  it('rotates landmarks by every delta candidate', () => {
+    const src = createLandmarkSlots();
+    src[LM.leftHip].x = 10;
+    src[LM.leftHip].y = 50;
+    src[LM.leftHip].visibility = 0.9;
+    const out = createLandmarkSlots();
+    const mw = 100;
+    const mh = 200;
+
+    rotateLandmarks(src, out, 0, mw, mh);
+    expect([out[LM.leftHip].x, out[LM.leftHip].y]).toEqual([10, 50]);
+
+    rotateLandmarks(src, out, 90, mw, mh);
+    expect([out[LM.leftHip].x, out[LM.leftHip].y]).toEqual([150, 10]);
+
+    rotateLandmarks(src, out, 270, mw, mh);
+    expect([out[LM.leftHip].x, out[LM.leftHip].y]).toEqual([50, 90]);
+
+    rotateLandmarks(src, out, 180, mw, mh);
+    expect([out[LM.leftHip].x, out[LM.leftHip].y]).toEqual([90, 150]);
+    expect(out[LM.leftHip].visibility).toBe(0.9);
+  });
+
+  it('push-ups: prefers the delta that lays the torso flat with wrists below', () => {
+    // Model space shows the athlete "standing" (MoveNet's favourite view).
+    const slots = createLandmarkSlots();
+    const set = (i: number, x: number, y: number) => {
+      slots[i].x = x;
+      slots[i].y = y;
+      slots[i].visibility = 0.9;
+    };
+    set(LM.leftShoulder, 50, 40);
+    set(LM.leftHip, 50, 100);
+    set(LM.leftWrist, 55, 130);
+
+    const s0 = displayDeltaScore(slots, 0, 100, 200, 'pushups');
+    const s90 = displayDeltaScore(slots, 90, 100, 200, 'pushups');
+    const s270 = displayDeltaScore(slots, 270, 100, 200, 'pushups');
+    expect(s90).toBeGreaterThan(s0);
+    expect(Math.max(s90, s270)).toBeGreaterThan(1); // horizontal + wrist signature
+  });
+
+  it('squats: prefers the delta that keeps the torso vertical, shoulders up', () => {
+    const slots = createLandmarkSlots();
+    const set = (i: number, x: number, y: number) => {
+      slots[i].x = x;
+      slots[i].y = y;
+      slots[i].visibility = 0.9;
+    };
+    set(LM.leftShoulder, 50, 40);
+    set(LM.leftHip, 50, 100);
+
+    const s0 = displayDeltaScore(slots, 0, 100, 200, 'squats');
+    const s90 = displayDeltaScore(slots, 90, 100, 200, 'squats');
+    expect(s0).toBeCloseTo(1.5, 5); // vertical=1 + shoulders-above=0.5
+    expect(s0).toBeGreaterThan(s90);
+  });
+
+  it('refuses to judge without confident torso joints', () => {
+    const slots = createLandmarkSlots();
+    slots[LM.leftShoulder].visibility = 0.9; // hips missing
+    expect(displayDeltaScore(slots, 0, 100, 200, 'pushups')).toBe(0);
+  });
 });
 
 describe('workout session glue', () => {

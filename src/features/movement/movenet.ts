@@ -219,3 +219,93 @@ export function smoothCrop(prev: CropRegion | null, next: CropRegion): CropRegio
 // (crop happens AFTER the mid-image is rotated upright, in the same space as
 // the landmarks — no sensor-space rectangle math, no dependence on the
 // underlying rotate() direction convention.)
+
+// -------------------------------------------------- model space ≠ display space
+// MoveNet is trained on upright people, so for a horizontal athlete (push-ups)
+// the best-scoring MODEL rotation shows them "standing" — rotated relative to
+// what the preview displays. The engine and the overlay need DISPLAY space
+// (gravity-true), so landmarks are rotated back by a delta that is calibrated
+// from the pose's gravity signature, not guessed from any convention:
+// push-ups → torso horizontal and wrists below shoulders;
+// squats   → torso vertical and shoulders above hips.
+
+export const DISPLAY_DELTAS = [0, 90, 270] as const;
+
+/**
+ * Rotate model-space pixel landmarks by `delta` into display space.
+ * Model dims (mw, mh) → display dims (mh, mw) for 90/270. Writes into `out`.
+ */
+export function rotateLandmarks(
+  src: readonly Landmark[],
+  out: Landmark[],
+  delta: number,
+  mw: number,
+  mh: number,
+): void {
+  'worklet';
+  for (let i = 0; i < src.length; i += 1) {
+    const s = src[i];
+    const o = out[i];
+    if (delta === 90) {
+      o.x = mh - s.y;
+      o.y = s.x;
+    } else if (delta === 270) {
+      o.x = s.y;
+      o.y = mw - s.x;
+    } else if (delta === 180) {
+      o.x = mw - s.x;
+      o.y = mh - s.y;
+    } else {
+      o.x = s.x;
+      o.y = s.y;
+    }
+    o.visibility = s.visibility;
+  }
+}
+
+/**
+ * How well the pose, rotated by `delta`, matches the exercise's gravity
+ * signature. Higher = more plausible display orientation. Returns 0 when the
+ * needed joints aren't confident enough to judge.
+ */
+export function displayDeltaScore(
+  slots: readonly Landmark[],
+  delta: number,
+  mw: number,
+  mh: number,
+  exercise: 'pushups' | 'squats',
+): number {
+  'worklet';
+  const rot = (i: number): { x: number; y: number; v: number } => {
+    const s = slots[i];
+    if (delta === 90) return { x: mh - s.y, y: s.x, v: s.visibility };
+    if (delta === 270) return { x: s.y, y: mw - s.x, v: s.visibility };
+    if (delta === 180) return { x: mw - s.x, y: mh - s.y, v: s.visibility };
+    return { x: s.x, y: s.y, v: s.visibility };
+  };
+
+  const ls = rot(11); // left shoulder
+  const rs = rot(12);
+  const lh = rot(23); // left hip
+  const rh = rot(24);
+  const shoulder = ls.v >= rs.v ? ls : rs;
+  const hip = lh.v >= rh.v ? lh : rh;
+  if (shoulder.v < 0.35 || hip.v < 0.35) return 0;
+
+  const dx = hip.x - shoulder.x;
+  const dy = hip.y - shoulder.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 1e-3) return 0;
+
+  if (exercise === 'pushups') {
+    const horizontal = Math.abs(dx) / len; // 1 = plank-flat
+    const lw = rot(15); // left wrist
+    const rw = rot(16);
+    const wrist = lw.v >= rw.v ? lw : rw;
+    const wristBelow = wrist.v >= 0.35 && wrist.y > shoulder.y ? 0.5 : 0;
+    return horizontal + wristBelow;
+  }
+  const vertical = Math.abs(dy) / len; // 1 = standing tall
+  const shouldersAbove = shoulder.y < hip.y ? 0.5 : 0;
+  return vertical + shouldersAbove;
+}
