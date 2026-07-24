@@ -75,11 +75,21 @@ export default function MoveScreen() {
         </AppText>
       </Card>
 
-      <Card style={styles.soonCard}>
-        <AppText variant="body" color="secondary">
-          {t('movement.run')} — {t('workout.comingSoon')}
-        </AppText>
-      </Card>
+      <ScalePressable onPress={() => router.push('/run')}>
+        <Card style={styles.exerciseCard}>
+          <View style={styles.cardRow}>
+            <AppText variant="h2">{t('movement.run')}</AppText>
+            <View style={[styles.badge, { backgroundColor: colors.primarySoft }]}>
+              <AppText variant="caption" color="accent">
+                {t('run.gpsChip')}
+              </AppText>
+            </View>
+          </View>
+          <AppText variant="caption" color="secondary">
+            {t('run.cardHint')}
+          </AppText>
+        </Card>
+      </ScalePressable>
     </Screen>
   );
 }

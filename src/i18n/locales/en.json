@@ -108,6 +108,20 @@
     "steps": "Steps",
     "run": "Run"
   },
+  "run": {
+    "title": "Run",
+    "gpsChip": "GPS",
+    "cardHint": "Route, distance and pace feed your daily score",
+    "locked": "Runs with a map are for subscribers",
+    "lockedBody": "The route map, distance and pace unlock with a subscription. Coming soon!",
+    "permissionBody": "Allow location access in Settings to record your run",
+    "start": "Start",
+    "finish": "Finish",
+    "time": "time",
+    "km": "km",
+    "pace": "pace",
+    "foregroundHint": "Allow \"Always\" location in Settings so the route records with the screen off"
+  },
   "share": {
     "button": "Share to stories",
     "daysStreak_one": "{{count}} day in a row",

@@ -45,7 +45,7 @@ export default function TodayScreen() {
     pushupReps: day?.pushupReps ?? 0,
     squatReps: day?.squatReps ?? 0,
     steps: stepsState.steps,
-    runMinutes: 0,
+    runMinutes: day?.runMinutes ?? 0,
   });
   const goal = targets
     ? computeDayGoal(targets)
@@ -108,6 +108,16 @@ export default function TodayScreen() {
             +{score.fromSteps}
           </AppText>
         </View>
+        {score.fromRun > 0 ? (
+          <View style={styles.row}>
+            <AppText variant="caption" color="secondary">
+              {t('home.fromRun')}
+            </AppText>
+            <AppText variant="bodyBold" tabular>
+              +{score.fromRun}
+            </AppText>
+          </View>
+        ) : null}
         <View style={styles.row}>
           <AppText variant="caption" color="secondary">
             {t('home.setsToday')}

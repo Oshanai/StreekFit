@@ -21,6 +21,7 @@ export type DailySyncResult = {
   squatSets: number;
   pushupReps: number;
   squatReps: number;
+  runMinutes: number;
   /** Achievement ids unlocked by this sync (server-validated). */
   newAchievements: string[];
 };
@@ -64,7 +65,7 @@ export async function syncToday(
     pushupReps: activity.pushupReps,
     squatReps: activity.squatReps,
     steps,
-    runMinutes: 0,
+    runMinutes: activity.runMinutes,
   }).total;
 
   // Recent history for streak + progression (a month is plenty for both).
@@ -150,6 +151,7 @@ export async function syncToday(
     squatSets: activity.squatSets,
     pushupReps: activity.pushupReps,
     squatReps: activity.squatReps,
+    runMinutes: activity.runMinutes,
     newAchievements,
   };
 }

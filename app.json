@@ -44,6 +44,15 @@
         }
       ],
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Streek Fit tracks your position during a run to draw the route and measure distance and pace.",
+          "locationAlwaysAndWhenInUsePermission": "Allow background location so your run keeps recording when the screen is off or the app is in the background.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#0D0F14",
@@ -52,7 +61,8 @@
         }
       ],
       "expo-secure-store",
-      "expo-sharing"
+      "expo-sharing",
+      "@maplibre/maplibre-react-native"
     ],
     "experiments": {
       "typedRoutes": true,

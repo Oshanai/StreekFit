@@ -13,6 +13,7 @@ export type TodayActivity = {
   squatReps: number;
   pushupSets: number;
   squatSets: number;
+  runMinutes: number;
 };
 
 function startOfTodayIso(): string {
@@ -22,14 +23,20 @@ function startOfTodayIso(): string {
 }
 
 export async function fetchTodayActivity(): Promise<TodayActivity> {
-  const totals: TodayActivity = { pushupReps: 0, squatReps: 0, pushupSets: 0, squatSets: 0 };
+  const totals: TodayActivity = {
+    pushupReps: 0,
+    squatReps: 0,
+    pushupSets: 0,
+    squatSets: 0,
+    runMinutes: 0,
+  };
   const seenIds = new Set<string>();
   const since = startOfTodayIso();
 
   try {
     const { data } = await supabase
       .from('sessions')
-      .select('id, type, valid_reps, sets_done')
+      .select('id, type, valid_reps, sets_done, minutes')
       .gte('performed_at', since);
     for (const row of data ?? []) {
       seenIds.add(row.id as string);
@@ -43,6 +50,7 @@ export async function fetchTodayActivity(): Promise<TodayActivity> {
         totals.squatReps += reps;
         totals.squatSets += sets;
       }
+      if (row.type === 'run') totals.runMinutes += Number(row.minutes ?? 0);
     }
   } catch {
     // Offline — the queue below still carries today's local sessions.
@@ -61,6 +69,7 @@ export async function fetchTodayActivity(): Promise<TodayActivity> {
       totals.squatReps += reps;
       totals.squatSets += row.setsDone;
     }
+    if (row.type === 'run') totals.runMinutes += row.minutes ?? 0;
   }
 
   return totals;
