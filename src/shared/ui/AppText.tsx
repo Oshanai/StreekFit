@@ -6,7 +6,7 @@ import { typeScale, type TextVariant } from './tokens';
 
 type AppTextProps = TextProps & {
   variant?: TextVariant;
-  color?: 'primary' | 'secondary' | 'disabled' | 'accent' | 'error' | 'success';
+  color?: 'primary' | 'secondary' | 'disabled' | 'accent' | 'info' | 'error' | 'success';
   /** Tabular figures for scores, timers, ranks — prevents layout shift. */
   tabular?: boolean;
 };
@@ -25,6 +25,7 @@ export function AppText({
     secondary: colors.textSecondary,
     disabled: colors.textDisabled,
     accent: colors.primary,
+    info: colors.info,
     error: colors.error,
     success: colors.success,
   }[color];

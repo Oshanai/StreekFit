@@ -41,11 +41,13 @@ export function MonthCalendar({
           {week.map((cell, ci) => {
             if (cell.day == null) return <View key={ci} style={styles.cell} />;
             const closed = cell.status !== 'none';
+            // Full days burn orange, light (steps-only) days cool teal —
+            // the chain reads its own composition at a glance.
             const bg =
               cell.status === 'full'
                 ? colors.primary
                 : cell.status === 'light'
-                  ? colors.primarySoft
+                  ? colors.infoSoft
                   : 'transparent';
             const textColor = cell.status === 'full' ? colors.onPrimary : undefined;
             return (

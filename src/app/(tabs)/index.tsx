@@ -247,7 +247,7 @@ export default function TodayScreen() {
         <View style={styles.row}>
           <AppText variant="bodyBold">{t('movement.steps')}</AppText>
           {stepsState.status === 'ready' ? (
-            <AppText variant="bodyBold" color="accent" tabular>
+            <AppText variant="bodyBold" color="info" tabular>
               {t('home.stepsOf', { count: stepsState.steps, target: stepsTarget })}
             </AppText>
           ) : null}

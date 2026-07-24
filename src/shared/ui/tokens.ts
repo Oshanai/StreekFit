@@ -15,6 +15,9 @@ export const palette = {
     primary: '#F97316',
     onPrimary: '#0D0F14',
     primarySoft: 'rgba(249,115,22,0.14)',
+    /** Cool companion to the orange: informational accents (steps, pace). */
+    info: '#2DD4BF',
+    infoSoft: 'rgba(45,212,191,0.14)',
     success: '#22C55E',
     error: '#EF4444',
     warning: '#FBBF24',
@@ -32,6 +35,9 @@ export const palette = {
     primary: '#EA580C',
     onPrimary: '#FFFFFF',
     primarySoft: 'rgba(234,88,12,0.10)',
+    /** Cool companion to the orange: informational accents (steps, pace). */
+    info: '#0D9488',
+    infoSoft: 'rgba(13,148,136,0.12)',
     success: '#16A34A',
     error: '#DC2626',
     warning: '#D97706',
@@ -84,9 +90,10 @@ export const fonts = {
 } as const;
 
 export const typeScale = {
-  display: { fontSize: 40, lineHeight: 46, fontFamily: fonts.display },
-  h1: { fontSize: 32, lineHeight: 37, fontFamily: fonts.display },
-  h2: { fontSize: 24, lineHeight: 28, fontFamily: fonts.displaySemi },
+  // Slight positive tracking opens up Oswald's condensed forms at display sizes.
+  display: { fontSize: 40, lineHeight: 46, fontFamily: fonts.display, letterSpacing: 0.4 },
+  h1: { fontSize: 32, lineHeight: 37, fontFamily: fonts.display, letterSpacing: 0.3 },
+  h2: { fontSize: 24, lineHeight: 28, fontFamily: fonts.displaySemi, letterSpacing: 0.2 },
   h3: { fontSize: 20, lineHeight: 26, fontFamily: fonts.bodySemiBold },
   body: { fontSize: 16, lineHeight: 24, fontFamily: fonts.body },
   bodyBold: { fontSize: 16, lineHeight: 24, fontFamily: fonts.bodySemiBold },

@@ -149,7 +149,7 @@ export function RunScreen() {
             </AppText>
           </View>
           <View style={styles.metric}>
-            <AppText variant="h1" tabular>
+            <AppText variant="h1" color="info" tabular>
               {formatPace(hud.pace)}
             </AppText>
             <AppText variant="micro" color="secondary">

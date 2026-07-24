@@ -22,6 +22,8 @@
 | `primary` | `#F97316` | `#EA580C` |
 | `onPrimary` | `#0D0F14` | `#FFFFFF` |
 | `primarySoft` | `rgba(249,115,22,0.14)` | `rgba(234,88,12,0.10)` |
+| `info` | `#2DD4BF` | `#0D9488` |
+| `infoSoft` | `rgba(45,212,191,0.14)` | `rgba(13,148,136,0.12)` |
 | `success` | `#22C55E` | `#16A34A` |
 | `error` | `#EF4444` | `#DC2626` |
 | `warning` | `#FBBF24` | `#D97706` |
@@ -30,12 +32,16 @@
 
 Contrast: body text ≥ 4.5:1, secondary ≥ 3:1 in BOTH themes. Functional colors always paired with icon/text.
 
+**Accent duet:** orange = усилие/огонь (тренировки, стрик, CTA), teal `info` = движение-фон (шаги, темп бега, лёгкие дни календаря). Никогда не смешивать роли: у каждого экрана оранжевый доминирует, teal поддерживает.
+
 ## Typography — Oswald (display) + Inter (body)
 > ⚠️ Font choice is constrained by Kazakh: cyrillic-ext glyphs (ә ғ қ ң ө ұ ү і) are REQUIRED.
 > Barlow was rejected — Latin-only. Any future font must be checked against kk text first.
 - Display / big numbers / screen titles: **Oswald_600SemiBold / _700Bold**
 - Body: **Inter_400Regular**, labels/buttons **Inter_600SemiBold**, emphasis **Inter_500Medium**
 - Scale (pt): `display 40` · `h1 32` · `h2 24` · `h3 20` · `body 16` · `caption 14` · `micro 12`
+- Oswald tracking: display +0.4, h1 +0.3, h2 +0.2 (открывает кондэнс-формы)
+- Tab bar labels: 11pt — самые длинные казахские подписи («Марапаттар») должны жить в одну строку на 5 табах
 - Line-height ×1.5 body, ×1.15 display. Numbers in scores/timers: tabular via `fontVariant: ['tabular-nums']`
 
 ## Spacing / radii / elevation

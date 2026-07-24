@@ -12,6 +12,11 @@ Full spec and phase checklist: `TZ_fitness_app.md` (single source of truth, work
 - Supabase (auth/db/storage) — client in `src/lib/supabase/client.ts`, env in `.env` (never commit)
 - i18n: i18next, languages **kk / ru / en** — NO hardcoded UI strings, keys only
 - Design system: `design-system/MASTER.md` is law; tokens in `src/shared/ui/tokens.ts`
+- Design intelligence: **UI/UX Pro Max** skill (global, `~/.claude/skills/ui-ux-pro-max`) drives all design
+  decisions. Before UI work query it:
+  `python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<query>" --design-system` (or `--domain ux|style|color|typography|chart`).
+  Apply results ONLY through MASTER.md + semantic tokens (MASTER.md itself is generated via this skill).
+  Its font picks must pass the Kazakh cyrillic-ext check below — Barlow was already rejected for this.
 
 ## Layout
 - `src/app` — expo-router routes only (thin wrappers)

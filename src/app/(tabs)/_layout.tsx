@@ -92,7 +92,9 @@ export default function TabsLayout() {
         },
         tabBarLabelStyle: {
           fontFamily: fonts.bodyMedium,
-          fontSize: 12,
+          // 11pt keeps the longest Kazakh labels («Марапаттар») on one line
+          // across all five tabs on a 390pt-wide phone.
+          fontSize: 11,
         },
       }}
     >
