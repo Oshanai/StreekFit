@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Animated, {
   FadeInDown,
@@ -16,6 +16,8 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { friendCodeOf } from '@/features/leaderboard/api';
 import { syncToday, type DailySyncResult } from '@/features/movement/dailySync';
 import { computeDayGoal, computeDayScore } from '@/features/movement/dayScore';
+import { closedDaysInMonth } from '@/features/movement/calendar';
+import { MonthCalendar } from '@/features/movement/MonthCalendar';
 import { useTodaySteps } from '@/features/movement/steps';
 import { StreakFlame } from '@/features/movement/StreakFlame';
 import { ShareCard } from '@/features/share/ShareCard';
@@ -83,6 +85,7 @@ export default function TodayScreen() {
 
   return (
     <Screen insideTabs>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
       <AppText variant="h1" style={styles.title}>
         {t('common.appName')}
       </AppText>
@@ -262,6 +265,22 @@ export default function TodayScreen() {
       </Card>
       </Animated.View>
 
+      {day != null ? (
+        <Animated.View entering={FadeInDown.delay(150).duration(360).springify().damping(16)}>
+          <Card style={styles.monthCard}>
+            <View style={styles.row}>
+              <AppText variant="h3">{t('home.monthCard')}</AppText>
+              <AppText variant="caption" color="secondary" tabular>
+                {t('home.closedDaysMonth', {
+                  count: closedDaysInMonth(day.todayKey, day.records),
+                })}
+              </AppText>
+            </View>
+            <MonthCalendar todayKey={day.todayKey} records={day.records} />
+          </Card>
+        </Animated.View>
+      ) : null}
+
       {score.total === 0 ? (
         <Card style={styles.emptyCard}>
           <AppText variant="body" color="secondary" style={styles.centered}>
@@ -271,6 +290,7 @@ export default function TodayScreen() {
       ) : null}
 
       <Button label={t('share.button')} variant="secondary" onPress={() => void share()} loading={sharing} />
+      </ScrollView>
 
       {/* Offscreen poster the share button captures at 1080×1920. */}
       <View style={styles.shareCardHost} pointerEvents="none">
@@ -289,6 +309,9 @@ export default function TodayScreen() {
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    paddingBottom: spacing.xxl,
+  },
   title: {
     marginBottom: spacing.xl,
   },
@@ -332,6 +355,10 @@ const styles = StyleSheet.create({
   },
   stepsCard: {
     gap: spacing.xs,
+    marginBottom: spacing.lg,
+  },
+  monthCard: {
+    gap: spacing.sm,
     marginBottom: spacing.lg,
   },
   emptyCard: {

@@ -26,6 +26,9 @@ export type DailySyncResult = {
   newAchievements: string[];
   /** Yesterday's score — today's shadow goal («Вчерашний ты»); null = no data. */
   yesterdayScore: number | null;
+  /** Month history incl. today — feeds the chain calendar. */
+  records: DayRecord[];
+  todayKey: string;
 };
 
 export type DailySyncTargets = {
@@ -163,5 +166,7 @@ export async function syncToday(
     runMinutes: activity.runMinutes,
     newAchievements,
     yesterdayScore,
+    records,
+    todayKey: today,
   };
 }
