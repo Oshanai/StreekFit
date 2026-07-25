@@ -31,7 +31,8 @@ export const palette = {
     bgGradient: ['#0D0F14', '#0D0F14'] as [string, string],
   },
   light: {
-    bg: '#F8FAFC',
+    /** Мягкий серо-голубой вместо слепящего белого — карточки остаются белыми. */
+    bg: '#ECEFF3',
     surface: '#FFFFFF',
     surfaceRaised: '#FFFFFF',
     border: '#E2E8F0',
@@ -54,7 +55,7 @@ export const palette = {
     streakFlame: '#F97316',
     overlay: 'rgba(15,23,42,0.45)',
     /** Screen backdrop gradient (top → bottom); equal colors = flat, not drawn. */
-    bgGradient: ['#F8FAFC', '#F8FAFC'] as [string, string],
+    bgGradient: ['#ECEFF3', '#ECEFF3'] as [string, string],
   },
   /** «Аметист» — глубокая фиолетовая ночь, огонь остаётся оранжевым. */
   violet: {

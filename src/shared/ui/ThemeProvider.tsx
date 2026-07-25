@@ -1,11 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { useColorScheme } from 'react-native';
 
 import { palette, type ThemeColors, type ThemeName } from './tokens';
 
-/** 'system' follows the OS (dark-first); the rest are explicit picks. */
-export type ThemeMode = 'system' | ThemeName;
+/** Explicit theme picks only — dark IS the default («как в системе» removed). */
+export type ThemeMode = ThemeName;
 
 type ThemeContextValue = {
   theme: ThemeName;
@@ -17,21 +16,21 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue>({
   theme: 'dark',
   colors: palette.dark,
-  mode: 'system',
+  mode: 'dark',
   setMode: () => {},
 });
 
 const STORAGE_KEY = 'streekfit.themeMode.v1';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const scheme = useColorScheme();
-  const [mode, setModeState] = useState<ThemeMode>('system');
+  const [mode, setModeState] = useState<ThemeMode>('dark');
 
   useEffect(() => {
     void AsyncStorage.getItem(STORAGE_KEY).then((stored) => {
-      if (stored === 'dark' || stored === 'light' || stored === 'violet' || stored === 'system') {
+      if (stored === 'dark' || stored === 'light' || stored === 'violet') {
         setModeState(stored);
       }
+      // legacy 'system' (or nothing) → dark-first default
     });
   }, []);
 
@@ -40,10 +39,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     void AsyncStorage.setItem(STORAGE_KEY, next);
   };
 
-  // Dark-first: system mode falls back to dark unless the OS asks for light.
-  const theme: ThemeName = mode === 'system' ? (scheme === 'light' ? 'light' : 'dark') : mode;
-
-  const value = useMemo(() => ({ theme, colors: palette[theme], mode, setMode }), [theme, mode]);
+  const value = useMemo(() => ({ theme: mode, colors: palette[mode], mode, setMode }), [mode]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
