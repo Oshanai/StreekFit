@@ -49,6 +49,16 @@ function todayDateString(): string {
 
 let lastWrite = { date: '', score: -1, status: '' as string, streak: -1 };
 
+// Focus/steps events can fire in bursts; when nothing observable changed,
+// answer from the last result instead of re-running 3–4 queries (TZ §11.4).
+const SYNC_THROTTLE_MS = 20_000;
+let lastSync: { at: number; key: string; result: DailySyncResult } | null = null;
+
+/** Call when new activity lands outside this module (e.g. session queue flush). */
+export function invalidateDailySync(): void {
+  lastSync = null;
+}
+
 export async function syncToday(
   targets: DailySyncTargets,
   steps: number,
@@ -56,6 +66,15 @@ export async function syncToday(
   const { data: auth } = await supabase.auth.getSession();
   const userId = auth.session?.user.id;
   if (!userId) return null;
+
+  const syncKey = `${userId}|${todayDateString()}|${Math.round(steps)}|${targets.pushup_target}|${targets.squat_target}|${targets.steps_target}`;
+  if (
+    lastSync != null &&
+    lastSync.key === syncKey &&
+    Date.now() - lastSync.at < SYNC_THROTTLE_MS
+  ) {
+    return lastSync.result;
+  }
 
   const activity = await fetchTodayActivity();
   const today = todayDateString();
@@ -154,7 +173,7 @@ export async function syncToday(
     }
   }
 
-  return {
+  const result: DailySyncResult = {
     score,
     status,
     streak,
@@ -169,4 +188,6 @@ export async function syncToday(
     records,
     todayKey: today,
   };
+  lastSync = { at: Date.now(), key: syncKey, result };
+  return result;
 }

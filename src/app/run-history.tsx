@@ -1,18 +1,19 @@
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { usePremium } from '@/features/leaderboard/usePremium';
 import { formatDuration, formatPace } from '@/features/run/geo';
-import { fetchRunHistory, type RunRecord } from '@/features/run/history';
-import { AppText, Button, Card, ScalePressable, Screen, spacing } from '@/shared/ui';
+import { fetchRunHistory, type RunListItem } from '@/features/run/history';
+import { AppText, Button, Card, ScalePressable, Screen, spacing, useTheme } from '@/shared/ui';
 
 /** Past runs: date, distance, time, pace; tap one with a track → route map. */
 export default function RunHistoryScreen() {
   const { t, i18n } = useTranslation();
+  const { colors } = useTheme();
   const { premium } = usePremium();
-  const [runs, setRuns] = useState<RunRecord[]>([]);
+  const [runs, setRuns] = useState<RunListItem[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useFocusEffect(
@@ -54,6 +55,12 @@ export default function RunHistoryScreen() {
           </Card>
         )}
 
+        {!loaded ? (
+          <Card style={styles.emptyCard}>
+            <ActivityIndicator color={colors.primary} />
+          </Card>
+        ) : null}
+
         {loaded && runs.length === 0 ? (
           <Card style={styles.emptyCard}>
             <AppText variant="body" color="secondary" style={styles.centered}>
@@ -65,7 +72,7 @@ export default function RunHistoryScreen() {
         {runs.map((run) => {
           const km = (run.distanceM / 1000).toFixed(2);
           const pace = run.distanceM >= 100 ? run.minutes / (run.distanceM / 1000) : null;
-          const hasTrack = (run.track?.length ?? 0) >= 2;
+          const hasTrack = run.hasTrack;
           const row = (
             <Card style={styles.runCard}>
               <View style={styles.rowBetween}>

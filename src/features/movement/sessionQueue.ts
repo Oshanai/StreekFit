@@ -20,6 +20,8 @@ import { randomUUID } from 'expo-crypto';
 
 import { supabase } from '@/lib/supabase/client';
 
+import { invalidateDailySync } from './dailySync';
+
 export type MovementType = 'pushups' | 'squats' | 'steps' | 'run';
 
 export type SessionInput = {
@@ -157,6 +159,7 @@ export async function flushSessionQueue(): Promise<number> {
     if (synced.size > 0 || dropped.size > 0) {
       await removeFromQueue(new Set([...synced, ...dropped]));
     }
+    if (synced.size > 0) invalidateDailySync(); // new activity → next sync is real
     return synced.size;
   } finally {
     flushing = false;

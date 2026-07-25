@@ -13,7 +13,7 @@ import {
   type CatalogRow,
 } from '@/features/achievements/catalog';
 import { useAuth } from '@/features/auth/AuthProvider';
-import { AppText, Card, ScalePressable, Screen, spacing, useTheme } from '@/shared/ui';
+import { AppText, Card, LoadingState, ScalePressable, Screen, spacing, useTheme } from '@/shared/ui';
 
 const POP_WINDOW_MS = 60 * 60 * 1000; // badges unlocked within the hour pop in
 
@@ -26,6 +26,7 @@ export default function AwardsScreen() {
   const [catalog, setCatalog] = useState<CatalogRow[]>([]);
   const [unlocked, setUnlocked] = useState<UnlockedMap>(new Map());
   const [freshIds, setFreshIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
   const featured = profile?.featured_achievements ?? [];
 
   useFocusEffect(
@@ -35,6 +36,7 @@ export default function AwardsScreen() {
         if (!alive) return;
         setCatalog(rows);
         setUnlocked(mine);
+        setLoading(false);
         // Freshness is computed at load time — render stays pure.
         const now = Date.now();
         setFreshIds(
@@ -57,6 +59,14 @@ export default function AwardsScreen() {
   };
 
   const unlockedCount = catalog.filter((r) => unlocked.has(r.id)).length;
+
+  if (loading && catalog.length === 0) {
+    return (
+      <Screen insideTabs>
+        <LoadingState />
+      </Screen>
+    );
+  }
 
   return (
     <Screen insideTabs>

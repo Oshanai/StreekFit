@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '@/features/auth/AuthProvider';
@@ -122,7 +122,11 @@ export default function LeaderboardScreen() {
                 {t('lb.noCity')}
               </AppText>
             </Card>
-          ) : rows.length === 0 && !loadingBoard ? (
+          ) : rows.length === 0 && loadingBoard ? (
+            <Card style={styles.noticeCard}>
+              <ActivityIndicator color={colors.primary} />
+            </Card>
+          ) : rows.length === 0 ? (
             <Card style={styles.noticeCard}>
               <AppText variant="body" color="secondary" style={styles.centered}>
                 {t('lb.empty')}

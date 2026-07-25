@@ -4,25 +4,29 @@
  * slots on the profile (TZ §8 / §2.3).
  */
 
+import { cachedFetch } from '@/lib/cache';
 import { supabase } from '@/lib/supabase/client';
 
 import { isBadgeCode, type CatalogRow, type Tier } from './catalog';
 
+/** The catalog barely changes — a day of cache saves a query per screen. */
 export async function fetchCatalog(): Promise<CatalogRow[]> {
-  const { data, error } = await supabase
-    .from('achievements')
-    .select('id, code, tier, threshold, sort')
-    .order('sort')
-    .order('tier');
-  if (error) throw error;
-  return (data ?? [])
-    .filter((r) => isBadgeCode(r.code as string))
-    .map((r) => ({
-      id: r.id as string,
-      code: r.code as CatalogRow['code'],
-      tier: r.tier as Tier,
-      threshold: r.threshold as number,
-    }));
+  return cachedFetch('achievements-catalog', 24 * 60 * 60 * 1000, async () => {
+    const { data, error } = await supabase
+      .from('achievements')
+      .select('id, code, tier, threshold, sort')
+      .order('sort')
+      .order('tier');
+    if (error) throw error;
+    return (data ?? [])
+      .filter((r) => isBadgeCode(r.code as string))
+      .map((r) => ({
+        id: r.id as string,
+        code: r.code as CatalogRow['code'],
+        tier: r.tier as Tier,
+        threshold: r.threshold as number,
+      }));
+  });
 }
 
 export type UnlockedMap = Map<string, string>; // achievement_id → unlocked_at

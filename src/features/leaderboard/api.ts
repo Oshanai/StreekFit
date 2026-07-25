@@ -5,6 +5,7 @@
  * profile uuid («код друга»).
  */
 
+import { cachedFetch } from '@/lib/cache';
 import { supabase } from '@/lib/supabase/client';
 
 export type BoardRow = {
@@ -17,16 +18,21 @@ export type BoardRow = {
   is_me: boolean;
 };
 
+/** Server snapshot refreshes every 15 min — 5 min of client cache is safe. */
 export async function fetchCityBoard(city: string): Promise<BoardRow[]> {
-  const { data, error } = await supabase.rpc('city_leaderboard', { target_city: city });
-  if (error) throw error;
-  return (data ?? []) as BoardRow[];
+  return cachedFetch(`city-board.${city}`, 5 * 60 * 1000, async () => {
+    const { data, error } = await supabase.rpc('city_leaderboard', { target_city: city });
+    if (error) throw error;
+    return (data ?? []) as BoardRow[];
+  });
 }
 
 export async function fetchFriendsBoard(): Promise<BoardRow[]> {
-  const { data, error } = await supabase.rpc('friends_leaderboard');
-  if (error) throw error;
-  return (data ?? []) as BoardRow[];
+  return cachedFetch('friends-board', 2 * 60 * 1000, async () => {
+    const { data, error } = await supabase.rpc('friends_leaderboard');
+    if (error) throw error;
+    return (data ?? []) as BoardRow[];
+  });
 }
 
 export type FoundProfile = {
