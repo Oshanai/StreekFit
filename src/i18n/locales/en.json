@@ -175,7 +175,8 @@
     "requestSent": "Request sent!",
     "requestError": "Didn't work — check the code and try again",
     "incoming": "Friend requests",
-    "accept": "Accept"
+    "accept": "Accept",
+    "clan": "Clan"
   },
   "workout": {
     "cameraChip": "Camera",
@@ -234,5 +235,35 @@
     "byWeeks": "By week",
     "byMonths": "By month",
     "empty": "No data yet — close your first day and the stats come alive"
+  },
+  "clan": {
+    "introTitle": "Clans",
+    "introBody": "Team up with friends: everyone's day score feeds the clan total — compete with other teams and climb the rating.",
+    "createTitle": "Create your clan",
+    "nameLabel": "Name",
+    "namePlaceholder": "Clan name…",
+    "create": "Create clan",
+    "createError": "Couldn't create the clan — try again",
+    "findTitle": "Find a clan",
+    "searchLabel": "Search",
+    "searchPlaceholder": "Clan name…",
+    "join": "Join",
+    "joinError": "Couldn't join — try again",
+    "rowMeta": "{{members}} members · {{points}} pts in 14 days",
+    "codeLine": "Clan code: {{code}}",
+    "allTime": "all time",
+    "last14": "last 14 days",
+    "avgDay": "avg/day",
+    "cheersTitle": "Cheers",
+    "membersTitle": "Members ({{count}})",
+    "memberMeta": "streak {{streak}}",
+    "owner": "captain",
+    "leave": "Leave clan",
+    "cheer_go": "Let's go!",
+    "cheer_fire": "On fire!",
+    "cheer_strong": "Strong!",
+    "cheer_beat": "Catch us!",
+    "cheer_welcome": "Welcome!",
+    "cheer_proud": "Proud of us!"
   }
 }

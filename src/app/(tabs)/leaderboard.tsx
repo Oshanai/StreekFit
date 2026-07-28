@@ -4,6 +4,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '@/features/auth/AuthProvider';
+import { ClanSection } from '@/features/clans/ClanSection';
 import {
   acceptFriendRequest,
   fetchCityBoard,
@@ -29,7 +30,7 @@ import {
   useTheme,
 } from '@/shared/ui';
 
-type BoardScope = 'city' | 'friends';
+type BoardScope = 'city' | 'friends' | 'clan';
 
 /** Rating tab: city/friends leaderboards (paid) + the free friends graph. */
 export default function LeaderboardScreen() {
@@ -50,7 +51,7 @@ export default function LeaderboardScreen() {
   const myCode = session ? friendCodeOf(session.user.id) : '';
 
   const loadBoard = useCallback(() => {
-    if (!premium) return;
+    if (!premium || scope === 'clan') return;
     setLoadingBoard(true);
     const load = scope === 'city' ? (city ? fetchCityBoard(city) : Promise.resolve([])) : fetchFriendsBoard();
     void load
@@ -105,17 +106,21 @@ export default function LeaderboardScreen() {
         {t('lb.title')}
       </AppText>
 
-      {premium ? (
-        <>
-          <View style={styles.scopeRow}>
-            <Chip label={t('lb.city')} selected={scope === 'city'} onPress={() => setScope('city')} />
-            <Chip
-              label={t('lb.friends')}
-              selected={scope === 'friends'}
-              onPress={() => setScope('friends')}
-            />
-          </View>
+      <View style={styles.scopeRow}>
+        <Chip label={t('lb.city')} selected={scope === 'city'} onPress={() => setScope('city')} />
+        <Chip
+          label={t('lb.friends')}
+          selected={scope === 'friends'}
+          onPress={() => setScope('friends')}
+        />
+        <Chip label={t('lb.clan')} selected={scope === 'clan'} onPress={() => setScope('clan')} />
+      </View>
 
+      {/* Clans are free — they ARE the viral loop (TZ §16). */}
+      {scope === 'clan' ? (
+        <ClanSection />
+      ) : premium ? (
+        <>
           {scope === 'city' && !city ? (
             <Card style={styles.noticeCard}>
               <AppText variant="body" color="secondary" style={styles.centered}>
