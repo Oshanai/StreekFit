@@ -8,7 +8,8 @@
     "save": "Save",
     "continue": "Continue",
     "back": "Back",
-    "done": "Done"
+    "done": "Done",
+    "close": "Close"
   },
   "tabs": {
     "today": "Today",
@@ -210,5 +211,28 @@
     "title": "Don't break the chain",
     "body": "A few minutes of movement closes the day.",
     "bodyStreak": "Your {{count}}-day streak burns at midnight — close the day!"
+  },
+  "stats": {
+    "weeklyTitle": "Weekly report",
+    "scoreWeek": "points this week",
+    "steps": "Steps",
+    "pushups": "Push-ups",
+    "squats": "Squats",
+    "run": "Run, km",
+    "fullDays": "Full days",
+    "open": "All stats",
+    "title": "Statistics",
+    "allTime": "All time",
+    "totalScore": "points",
+    "totalSteps": "steps",
+    "workouts": "workouts",
+    "runKm": "km run",
+    "records": "Records",
+    "bestDay": "Best day",
+    "bestWeek": "Best week",
+    "bestMonth": "Best month",
+    "byWeeks": "By week",
+    "byMonths": "By month",
+    "empty": "No data yet — close your first day and the stats come alive"
   }
 }

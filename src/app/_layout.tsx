@@ -54,6 +54,7 @@ function RootNavigator() {
         <Stack.Screen name="run" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
         <Stack.Screen name="run-history" />
         <Stack.Screen name="run-view" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+        <Stack.Screen name="stats" />
       </Stack.Protected>
       <Stack.Protected guard={!!session && !onboardingComplete}>
         <Stack.Screen name="onboarding" />

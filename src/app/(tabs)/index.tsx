@@ -1,4 +1,4 @@
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,8 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { friendCodeOf } from '@/features/leaderboard/api';
 import { syncToday, type DailySyncResult } from '@/features/movement/dailySync';
 import { refreshStreakReminders } from '@/features/movement/reminders';
+import { useWeeklyReport } from '@/features/stats/useWeeklyReport';
+import { WeeklyReportModal } from '@/features/stats/WeeklyReportModal';
 import { computeDayGoal, computeDayScore } from '@/features/movement/dayScore';
 import { closedDaysInMonth } from '@/features/movement/calendar';
 import { MonthCalendar } from '@/features/movement/MonthCalendar';
@@ -23,7 +25,7 @@ import { useTodaySteps } from '@/features/movement/steps';
 import { StreakFlame } from '@/features/movement/StreakFlame';
 import { ShareCard } from '@/features/share/ShareCard';
 import { useShareCard } from '@/features/share/useShareCard';
-import { AppText, Button, Card, Screen, spacing, useTheme } from '@/shared/ui';
+import { AppText, Button, Card, ScalePressable, Screen, spacing, useTheme } from '@/shared/ui';
 
 /**
  * Today — the day's single score, streak and goal progress (TZ §6).
@@ -38,6 +40,7 @@ export default function TodayScreen() {
 
   const [day, setDay] = useState<DailySyncResult | null>(null);
   const [streakAtRisk, setStreakAtRisk] = useState(false);
+  const weekly = useWeeklyReport();
 
   const runSync = useCallback(() => {
     if (!targets) return;
@@ -280,6 +283,15 @@ export default function TodayScreen() {
               </AppText>
             </View>
             <MonthCalendar todayKey={day.todayKey} records={day.records} />
+            <ScalePressable
+              onPress={() => router.push('/stats')}
+              accessibilityRole="button"
+              accessibilityLabel={t('stats.open')}
+            >
+              <AppText variant="caption" color="accent" style={styles.centered}>
+                {t('stats.open')} →
+              </AppText>
+            </ScalePressable>
           </Card>
         </Animated.View>
       ) : null}
@@ -307,6 +319,10 @@ export default function TodayScreen() {
           }}
         />
       </View>
+
+      {weekly.report != null ? (
+        <WeeklyReportModal report={weekly.report} visible={weekly.visible} onClose={weekly.close} />
+      ) : null}
     </Screen>
   );
 }

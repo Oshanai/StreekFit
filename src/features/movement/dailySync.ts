@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase/client';
 import { computeDayScore } from './dayScore';
 import { consecutiveFullDays, progressionDecision, type ProgressionDecision } from './progression';
 import { computeStreak, evaluateDay, type DayRecord, type DayStatus } from './streak';
+import { onNewActivitySynced } from './syncSignal';
 import { fetchTodayActivity } from './todayActivity';
 
 export type DailySyncResult = {
@@ -58,6 +59,9 @@ let lastSync: { at: number; key: string; result: DailySyncResult } | null = null
 export function invalidateDailySync(): void {
   lastSync = null;
 }
+
+// A queue flush means fresh reps/minutes — the cached answer is stale.
+onNewActivitySynced(invalidateDailySync);
 
 export async function syncToday(
   targets: DailySyncTargets,
