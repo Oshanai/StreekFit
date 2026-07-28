@@ -65,7 +65,8 @@
       "@maplibre/maplibre-react-native",
       "expo-image",
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+      "./plugins/withoutPushEntitlement"
     ],
     "experiments": {
       "typedRoutes": true,
