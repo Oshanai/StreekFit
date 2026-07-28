@@ -15,6 +15,7 @@ import Animated, {
 import { useAuth } from '@/features/auth/AuthProvider';
 import { friendCodeOf } from '@/features/leaderboard/api';
 import { syncToday, type DailySyncResult } from '@/features/movement/dailySync';
+import { refreshStreakReminders } from '@/features/movement/reminders';
 import { computeDayGoal, computeDayScore } from '@/features/movement/dayScore';
 import { closedDaysInMonth } from '@/features/movement/calendar';
 import { MonthCalendar } from '@/features/movement/MonthCalendar';
@@ -49,6 +50,8 @@ export default function TodayScreen() {
       );
       // Targets changed in the DB — pull them into the app state.
       if (result.progression.type !== 'none') void refreshProfile();
+      // Keep the 19:00 «не разорви цепочку» notifications in sync with the day.
+      void refreshStreakReminders({ dayClosed: result.status !== 'none', streak: result.streak });
     });
   }, [targets, stepsState.steps, refreshProfile]);
 
