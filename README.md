@@ -1,3 +1,14 @@
+<p align="center">
+  <img src="assets/images/logo-glow.png" width="120" alt="Streek Fit">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Expo-SDK%2057-000020?logo=expo&logoColor=white" alt="Expo SDK 57">
+  <img src="https://img.shields.io/badge/React%20Native-0.86-61DAFB?logo=react&logoColor=black" alt="React Native 0.86">
+  <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white" alt="TypeScript strict">
+  <img src="https://img.shields.io/badge/Supabase-Postgres%20%2B%20RLS-3ECF8E?logo=supabase&logoColor=white" alt="Supabase">
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT">
+</p>
 # Streek Fit
 
 Movement → daily score → streak → city leaderboard.
