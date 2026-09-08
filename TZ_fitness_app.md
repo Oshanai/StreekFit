@@ -34,7 +34,7 @@
 - [x] Имя выбрано: **Streek Fit** (в сторах как полное имя свободно)
 - [ ] Проверить домен `streekfit.com` у регистратора (фолбэк: `getstreekfit.com` / `streekfit.app`)
 - [x] GitHub: создать пустой приватный репозиторий `streek-fit` (факт: `Oshanai/StreekFit`)
-- [x] Supabase: создать проект `streek-fit-dev`, скопировать Project URL + anon key (ref: `nripefskgxkspbeawktd`)
+- [x] Supabase: создать проект `streek-fit-dev`, скопировать Project URL + anon key (ref: см. .env.tooling)
 - [ ] (Позже, не сейчас) Apple Developer $99/год, Google Play $25 разово
 
 ### 1.2 Локальная машина (разово)
