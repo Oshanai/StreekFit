@@ -9,6 +9,7 @@
   <img src="https://img.shields.io/badge/Supabase-Postgres%20%2B%20RLS-3ECF8E?logo=supabase&logoColor=white" alt="Supabase">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT">
 </p>
+
 # Streek Fit
 
 Movement → daily score → streak → city leaderboard.
