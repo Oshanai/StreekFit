@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/images/logo-glow.png" width="120" alt="Streek Fit">
+  <img src="assets/images/icon.png" width="120" alt="Streek Fit">
 </p>
 
 <p align="center">
